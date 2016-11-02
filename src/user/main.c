@@ -1,7 +1,6 @@
 #include "main.h"
 #include <stdlib.h>
 #include <string.h>
-
 u32 ticks_img = 0;
 u32 ticks_sec_img = 0;
 u16 servo_pos = 750;
@@ -9,53 +8,76 @@ u8 speed = 20;
 u16 speed_indic[3] = {RGB888TO565(0xC72929), RGB888TO565(0xFFC72C), RGB888TO565(0x40CA77)};
 const int WINDOWSIZE = 30;
 const int MAXBUFFER = 100;
+
 int global_led_on = 0;
 int bool_need_clear_buffer = 1;
 int bool_command_finish = 0;
-int pointer = 0;
 int timeSinceLastCommand;
 int curTime;
+int ccdTime = 0;
+int ccd_rate = 50;
+int buffer_index = 0;
 
 char medianCCD[128] = {0};
 char buffer[MAXBUFFER] = {0};
 char cmd[10] = "";
+char num[10] = "";
 char val[10] = "";
 char manual_buffer[100];
 char curKey = '\0';
 
+void use_motor(long value, long num){
+    if(value<100 && value>0){
+        motor_control(num, 1, value);
+	}else{
+		uart_tx(COM3, "motor value is out of range\n");
+	}
+}
+void use_servo(long value, long num){
+    if(value<1050&&value>450){
+        servo_control(num, value);
+    }else{
+        uart_tx(COM3, "servo value is out of range\n");
+    }
+}
+void use_led(long value, long num){
+    if(value == 1) {
+        led_on(num);
+        uart_tx(COM3, "TURNED LED %ld ON\n", num);
+    }else{
+        led_off(num);
+        uart_tx(COM3, "TURNED LED %ld OFF\n", num);
+    }
+}
 void buffer_clear(){
 	if (bool_need_clear_buffer) {
 		bool_need_clear_buffer = 0;
 		int k;
 		for (k = 0; k < MAXBUFFER; k++) {
-				buffer[k] = '\0';
+            buffer[k] = '\0';
 		}
-		for (k = 0; k < 10; k++) {
-				cmd[k] = '\0';
-				val[k] = '\0';
+		for (k = 0; k < 10; ++k) {
+			cmd[k] = '\0';
+			val[k] = '\0';
 		}
 	}
 }
 void uart_listener_buffer(const u8 byte) {
 
-
-
-
 }
 void uart_listener(const u8 byte) {
     curTime = get_real_ticks();
     timeSinceLastCommand = 0;
-	  buffer[pointer++] = byte;
+	buffer[buffer_index++] = byte;
     uart_tx(COM3, "BUFFER: %s\n", buffer);
     if (byte == '.') {
         bool_command_finish = 1;
-        pointer = 0;
+        buffer_index = 0;
     }
-
-    if (curKey != byte)
-        uart_tx(COM3, "recieved: %c\n", byte);
-
-				curKey = byte;
+    if (curKey != byte){
+        uart_tx(COM3, "received: %c\n", byte);
+    }
+    curKey = byte;
 }
 float getMedian(const int a[]) {
     int arr[WINDOWSIZE] = {0};
@@ -68,7 +90,7 @@ float getMedian(const int a[]) {
         j = i - 1;
         while (j>0 && arr[j] > key) {
             arr[j+1] = arr[j];
-            j--;
+            --j;
         }
         arr[j+1] = key;
     }
@@ -76,7 +98,7 @@ float getMedian(const int a[]) {
 }
 
 void runMedianFilter(){
-		int curWindow[WINDOWSIZE] = {0};
+	int curWindow[WINDOWSIZE] = {0};
     int indexOfOldest = 0;
     //initialize the window
     for (int k = 0; k < WINDOWSIZE; k++) {
@@ -101,82 +123,68 @@ void runMedianFilter(){
         }
 			*/
     }
-
     for (int k = 128 - WINDOWSIZE; k < 128; k++){
         medianCCD[k] = getMedian(curWindow);
     }
 }
 void bluetooth_handler(){
-	long value=0;
-	  if (bool_command_finish) {
-            bool_command_finish = 0;
-            uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
+long value=0; //Value
+long num=0; //Command Number(e.g. motor 0/1/2/3)
+  if (bool_command_finish){
+	bool_command_finish = 0;
+	uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
 
-            int k;
-            for (k = 0; buffer[k] != ':'; k++) {
-                cmd[k] = buffer[k];
-            }
-            int j;
-            int valPoint = 0;
-            for (j = k+1; buffer[j] != '.'; j++) {
-                val[valPoint++] = buffer[j];
-            }
-						char *number = &val[0];
-            uart_tx(COM3, "NAME: %s\n", cmd);
-            uart_tx(COM3, "VAL: %s\n", val);
-						value = strtol(val, &number, 10);
-						uart_tx(COM3,"The value is: %ld\n", value);
-            if (strcmp("led", cmd) == 0) {
-                if(value==1) {
-                    led_on(LED1);
-                    uart_tx(COM3, "TURNED LED 1 ON\n");
-                } else {
-                    led_off(LED1);
-                    uart_tx(COM3, "TURNED LED 1 OFF\n");
-                }
-								buffer_clear();
-            }
-
-            //insert more command checking here
-						
-						//add checking for value 100>value>0
-						
-						//Motors
-						if(value<100 && value>0){
-							if(strcmp("motor0",cmd)==0){
-								motor_control(0, 1, value);
-								uart_tx(COM3,"motor0 is on \n");
-							}else if (strcmp("motor1", cmd)==0){
-								motor_control(1, 1, value);
-								uart_tx(COM3,"motor1 is on \n");
-							}else if (strcmp("motor2", cmd)==0){
-								motor_control(2, 1, value);
-								uart_tx(COM3,"motor2 is on \n");
-							}
-						}
-						else{
-							uart_tx(COM3, "value is out of range\n");
-						}
-						//Servos
-						if(strcmp("servo0",cmd)==0){
-							if(value<1050&&value>450){
-							servo_control(0, value);
-							}
-						}
-						else if(strcmp("servo1",cmd)==0){
-							if(value<1050||value>450){ // Always true ???
-							servo_control(1,value);	
-							}
-						}
-		}
-		bool_need_clear_buffer = 1;
+	int i,j;
+	int val_index = 0;
+	for (i = 0; buffer[i] != ':'; ++i) { //Separate buffer into cmd and val
+		cmd[i] = buffer[i];
+	}
+	for(j = i+1; buffer[j] != '.'; ++j){
+		val[val_index++] = buffer[j];
+	}
+    char *cmdptr = cmd; //cmd pointer
+	char *valptr = val; //val pointer
+	uart_tx(COM3, "NAME: %s\n", cmd);
+	uart_tx(COM3, "VAL: %s\n", val);
+	value = strtol(val, &valptr, 10);
+	uart_tx(COM3,"The value is: %ld\n", value); //Delete later?
+    while (*cmdptr) { // While there are more characters to process
+        bool_need_clear_buffer = 1;
+        //isdigit(*cmdptr)? num = strtol(cmd &cmdptr, 10): cmdptr++;
+        if (isdigit(*cmdptr)) { // Upon finding a digit
+            num = strtol(cmd, &cmdptr, 10); // Read a number
+        }else { // Otherwise, move on to the next character.
+            cmdptr++;
+        }
+    }
+    if (strstr(cmd, "led"){ //if detect substring led(strstr returns a pointer)
+		use_led(value, num); //LED
+	}
+	if(strstr(cmd,"motor")){ //if detect substring motor
+        use_motor(value, num); //MOTOR
+    	uart_tx(COM3,"motor %ld is on \n", num);
+    }
+	if(strstr(cmd,"servo")){ //if detect substring servo
+        use_servo(value, num) //SERVO
+        uart_tx(COM3, "servo %ld is on \n", num)
+    }
+    buffer_clear();
 }
-							
-						
-					
-						//add checking for value 450<value<1050
-						
-					/*	if(strcmp("manual",cmd)==0){
+void init_all(){
+	led_init();
+    gpio_init();
+    ticks_init();
+    linear_ccd_init();
+    adc_init();
+    button_init();
+	servo_init(143,10000,0);
+    tft_init(1, BLACK, WHITE);
+    uart_init(COM3, 115200);
+    uart_interrupt_init(COM3, &uart_listener); //com port, function
+    uart_tx(COM3, "initialize\n");
+	motor_init(143, 10000, 0);
+}	
+/*	if(strcmp("manual",cmd)==0){
 							if(curKey=='w'){
 							
 							
@@ -193,49 +201,28 @@ void bluetooth_handler(){
 						if(strcmp("auto",cmd)==0){
 						
 						
-						
-						}*/
-
-int main() {
-    led_init();
-    gpio_init();
-    ticks_init();
-    linear_ccd_init();
-    adc_init();
-    button_init();
-		servo_init(143,10000,0);
-    tft_init(1, BLACK, WHITE);
-    uart_init(COM3, 115200);
-    uart_interrupt_init(COM3, &uart_listener); //com port, function
-    uart_tx(COM3, "initialize\n");
-		motor_init(143, 10000, 0);
-    int ccdTime = 0;
-
-    while (1) {
-				motor_control(0, 1, 5); //id, direction, magnitude
-        if (get_real_ticks() - ccdTime >= 50) { //Update every 50 ms
-            ccdTime = get_real_ticks();
-
-            int k;
-            for (k = 0; k < 128; k++) {
-                tft_put_pixel(k, 159-linear_ccd_buffer1[k], BLACK);
-								tft_put_pixel(k, 159-medianCCD[k], BLACK);
-            }
-            linear_ccd_read();
-						runMedianFilter();
-
-            for (k = 0; k < 128; k++) {
-                tft_put_pixel(k, 159-linear_ccd_buffer1[k], RED);
-								tft_put_pixel(k, 159-medianCCD[k], WHITE);
-            }
-        }
-				
-      bluetooth_handler();
-
-       
+				}*/
+int main(){
+	init_all();
+	while(1){
+        motor_control(0, 1, 5); //id, direction, magnitude
+        if (get_real_ticks() - ccdTime >= ccd_rate){ //Update by CCD Rate
+    		ccdTime = get_real_ticks();
+    		int k;
+    		for (k = 0; k < 128; k++) { //Clear CCD Screen
+				tft_put_pixel(k, 159-linear_ccd_buffer1[k], BLACK);
+				tft_put_pixel(k, 159-medianCCD[k], BLACK);
+    		}
+    		linear_ccd_read();
+    		runMedianFilter();
+    		for (k = 0; k < 128; k++) { //Add CCD onto Screen
+				tft_put_pixel(k, 159-linear_ccd_buffer1[k], RED);
+				tft_put_pixel(k, 159-medianCCD[k], WHITE);
+    		}
+    	}
+        bluetooth_handler();
     }
 }
-
 
 //Button listeners
 /*

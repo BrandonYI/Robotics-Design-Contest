@@ -21,43 +21,41 @@ Target DLL:      UL2CM3.DLL V1.158.5.0
 Dialog DLL:      TCM.DLL V1.14.14.0
  
 <h2>Project:</h2>
-C:\Users\Dennis\Desktop\Robotics\ustrobo16_internal\ustrobo16_internal.uvprojx
+C:\Users\Dennis\GitHub\Robotics-Design-Contest\ustrobo16_internal.uvprojx
 Project File Date:  11/02/2016
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 3 (build 300)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'stm32f103rb_template'
 compiling main.c...
-src\user\main.c(85): warning:  #177-D: variable "firstMaxMedianIndex" was declared but never referenced
+src\user\main.c(31): warning:  #188-D: enumerated type mixed with another type
+          motor_control(num, 1, value);
+src\user\main.c(91): warning:  #177-D: variable "firstMaxMedianIndex" was declared but never referenced
       int firstMaxMedianIndex = 0;
-src\user\main.c(86): warning:  #177-D: variable "lastMaxMedianIndex" was declared but never referenced
+src\user\main.c(92): warning:  #177-D: variable "lastMaxMedianIndex" was declared but never referenced
       int lastMaxMedianIndex = 0;
-src\user\main.c(146): warning:  #188-D: enumerated type mixed with another type
-  							motor_control(0, 1, value);
-src\user\main.c(151): warning:  #188-D: enumerated type mixed with another type
-  							motor_control(1, 1, value);
-src\user\main.c(156): warning:  #188-D: enumerated type mixed with another type
-  							motor_control(2, 1, value);
+src\user\main.c(137): warning:  #223-D: function "isdigit" declared implicitly
+          if (isdigit(*cmdptr)) { // Upon finding a digit
 src\user\main.c(163): warning:  #188-D: enumerated type mixed with another type
-  							servo_control(0, value);
-src\user\main.c(167): warning:  #188-D: enumerated type mixed with another type
-  							servo_control(1,value);	
-src\user\main.c(219): warning:  #188-D: enumerated type mixed with another type
-  				motor_control(0, 1, 5); //id, direction, magnitude
-src\user\main.c(364): warning:  #1-D: last line of file ends without a newline
+  				servo_control(0, value);
+src\user\main.c(166): warning:  #188-D: enumerated type mixed with another type
+  				servo_control(1,value);	
+src\user\main.c(208): warning:  #188-D: enumerated type mixed with another type
+          motor_control(0, 1, 5); //id, direction, magnitude
+src\user\main.c(347): warning:  #1-D: last line of file ends without a newline
   }
-src\user\main.c: 9 warnings, 0 errors
+src\user\main.c: 8 warnings, 0 errors
 linking...
-Program Size: Code=16156 RO-data=13868 RW-data=168 ZI-data=3136  
+Program Size: Code=16212 RO-data=13868 RW-data=176 ZI-data=3144  
 FromELF: creating hex file...
-".\Objects\ustrobo16_internal.axf" - 0 Error(s), 9 Warning(s).
+".\Objects\ustrobo16_internal.axf" - 0 Error(s), 8 Warning(s).
 
 <h2>Collection of Component include folders:</h2>
-  C:\Users\Dennis\Desktop\Robotics\ustrobo16_internal\RTE
+  C:\Users\Dennis\GitHub\Robotics-Design-Contest\RTE
   C:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.1.0\Device\Include
 
 <h2>Collection of Component Files used:</h2>
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:00
 </pre>
 </body>
 </html>
