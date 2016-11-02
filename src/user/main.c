@@ -1,5 +1,6 @@
 #include "main.h"
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 u32 ticks_img = 0;
 u32 ticks_sec_img = 0;
@@ -28,24 +29,24 @@ char curKey = '\0';
 
 void use_motor(long value, long num){
     if(value<100 && value>0){
-        motor_control(num, 1, value);
+        motor_control((MOTOR_ID)num, 1, value);
 	}else{
 		uart_tx(COM3, "motor value is out of range\n");
 	}
 }
 void use_servo(long value, long num){
     if(value<1050&&value>450){
-        servo_control(num, value);
+        servo_control((SERVO_ID)num, value);
     }else{
         uart_tx(COM3, "servo value is out of range\n");
     }
 }
 void use_led(long value, long num){
     if(value == 1) {
-        led_on(num);
+        led_on((LED_ID)num);
         uart_tx(COM3, "TURNED LED %ld ON\n", num);
     }else{
-        led_off(num);
+        led_off((LED_ID)num);
         uart_tx(COM3, "TURNED LED %ld OFF\n", num);
     }
 }
@@ -128,47 +129,48 @@ void runMedianFilter(){
     }
 }
 void bluetooth_handler(){
-long value=0; //Value
-long num=0; //Command Number(e.g. motor 0/1/2/3)
-  if (bool_command_finish){
-	bool_command_finish = 0;
-	uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
+    long value=0; //Value
+    long num=0; //Command Number(e.g. motor 0/1/2/3)
+    if (bool_command_finish){
+    	bool_command_finish = 0;
+    	uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
 
-	int i,j;
-	int val_index = 0;
-	for (i = 0; buffer[i] != ':'; ++i) { //Separate buffer into cmd and val
-		cmd[i] = buffer[i];
-	}
-	for(j = i+1; buffer[j] != '.'; ++j){
-		val[val_index++] = buffer[j];
-	}
-    char *cmdptr = cmd; //cmd pointer
-	char *valptr = val; //val pointer
-	uart_tx(COM3, "NAME: %s\n", cmd);
-	uart_tx(COM3, "VAL: %s\n", val);
-	value = strtol(val, &valptr, 10);
-	uart_tx(COM3,"The value is: %ld\n", value); //Delete later?
-    while (*cmdptr) { // While there are more characters to process
-        bool_need_clear_buffer = 1;
-        //isdigit(*cmdptr)? num = strtol(cmd &cmdptr, 10): cmdptr++;
-        if (isdigit(*cmdptr)) { // Upon finding a digit
-            num = strtol(cmd, &cmdptr, 10); // Read a number
-        }else { // Otherwise, move on to the next character.
-            cmdptr++;
+    	int i,j;
+    	int val_index = 0;
+    	for (i = 0; buffer[i] != ':'; ++i) { //Separate buffer into cmd and val
+    		cmd[i] = buffer[i];
+    	}
+    	for(j = i+1; buffer[j] != '.'; ++j){
+    		val[val_index++] = buffer[j];
+    	}
+        char *cmdptr = cmd; //cmd pointer
+    	char *valptr = val; //val pointer
+    	uart_tx(COM3, "NAME: %s\n", cmd);
+    	uart_tx(COM3, "VAL: %s\n", val);
+    	value = strtol(val, &valptr, 10);
+    	uart_tx(COM3,"The value is: %ld\n", value); //Delete later?
+        while (*cmdptr) { // While there are more characters to process
+            bool_need_clear_buffer = 1;
+            //isdigit(*cmdptr)? num = strtol(cmd &cmdptr, 10): cmdptr++
+            if (isdigit(*cmdptr)) { // Upon finding a digit
+                num = strtol(cmd, &cmdptr, 10); // Read a number
+            }else { // Otherwise, move on to the next character.
+                cmdptr++;
+            }
         }
+        if (strstr(cmd, "led")){ //if detect substring led(strstr returns a pointer)
+    		use_led(value, num); //LED
+    	}
+    	if(strstr(cmd,"motor")){ //if detect substring motor
+            use_motor(value, num); //MOTOR
+        	uart_tx(COM3,"motor %ld is on \n", num);
+        }
+    	if(strstr(cmd,"servo")){ //if detect substring servo
+            use_servo(value, num); //SERVO
+            uart_tx(COM3, "servo %ld is on \n", num);
+        }
+        buffer_clear();
     }
-    if (strstr(cmd, "led"){ //if detect substring led(strstr returns a pointer)
-		use_led(value, num); //LED
-	}
-	if(strstr(cmd,"motor")){ //if detect substring motor
-        use_motor(value, num); //MOTOR
-    	uart_tx(COM3,"motor %ld is on \n", num);
-    }
-	if(strstr(cmd,"servo")){ //if detect substring servo
-        use_servo(value, num) //SERVO
-        uart_tx(COM3, "servo %ld is on \n", num)
-    }
-    buffer_clear();
 }
 void init_all(){
 	led_init();
