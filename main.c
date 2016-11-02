@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+
 u32 ticks_img = 0;
 u32 ticks_sec_img = 0;
 u16 servo_pos = 750;
@@ -40,6 +41,9 @@ void use_servo(long value, long num){
     }else{
         uart_tx(COM3, "servo value is out of range\n");
     }
+}
+void use_pneumatic(long value, long num){
+	pneumatic_control((PNEUMATIC_ID)num, value); //1 is on, others is off
 }
 void use_led(long value, long num){
     if(value == 1) {
@@ -128,49 +132,79 @@ void runMedianFilter(){
         medianCCD[k] = getMedian(curWindow);
     }
 }
-void bluetooth_handler(){
-    long value=0; //Value
-    long num=0; //Command Number(e.g. motor 0/1/2/3)
+void bluetooth_handler(){ 
     if (bool_command_finish){
-    	bool_command_finish = 0;
-    	uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
-
+    	long value=0; //Value
+    	long num=0; //Command Number(e.g. motor 0/1/2/3)
     	int i,j;
     	int val_index = 0;
+    	bool_command_finish = 0;
     	for (i = 0; buffer[i] != ':'; ++i) { //Separate buffer into cmd and val
     		cmd[i] = buffer[i];
     	}
     	for(j = i+1; buffer[j] != '.'; ++j){
     		val[val_index++] = buffer[j];
     	}
-        char *cmdptr = cmd; //cmd pointer
+
+    	char *cmdptr = cmd; //cmd pointer
     	char *valptr = val; //val pointer
-    	uart_tx(COM3, "NAME: %s\n", cmd);
-    	uart_tx(COM3, "VAL: %s\n", val);
-    	value = strtol(val, &valptr, 10);
-    	uart_tx(COM3,"The value is: %ld\n", value); //Delete later?
-        while (*cmdptr) { // While there are more characters to process
-            bool_need_clear_buffer = 1;
-            //isdigit(*cmdptr)? num = strtol(cmd &cmdptr, 10): cmdptr++
+    	while (*cmdptr) { // While there are more characters to process
+            //isdigit(*cmdptr)? num = strtol(cmd &cmdptr, 10): cmdptr++;
             if (isdigit(*cmdptr)) { // Upon finding a digit
                 num = strtol(cmd, &cmdptr, 10); // Read a number
             }else { // Otherwise, move on to the next character.
                 cmdptr++;
             }
         }
-        if (strstr(cmd, "led")){ //if detect substring led(strstr returns a pointer)
+    	value = strtol(val, &valptr, 10);
+
+    	uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
+    	uart_tx(COM3, "NAME: %s\n", cmd);
+    	uart_tx(COM3, "VAL: %s\n", val);
+    	uart_tx(COM3,"The value is: %ld\n", value); //Delete later?
+    	
+    	if(strstr(cmd, "led")){ //if detect substring led(strstr returns a pointer)
+    		bool_need_clear_buffer = 1;
     		use_led(value, num); //LED
     	}
-    	if(strstr(cmd,"motor")){ //if detect substring motor
-            use_motor(value, num); //MOTOR
-        	uart_tx(COM3,"motor %ld is on \n", num);
-        }
-    	if(strstr(cmd,"servo")){ //if detect substring servo
-            use_servo(value, num); //SERVO
-            uart_tx(COM3, "servo %ld is on \n", num);
-        }
-        buffer_clear();
+    	else if(strstr(cmd,"motor")){ //if detect substring motor
+    		use_motor(value, num); //MOTOR
+    		uart_tx(COM3,"motor %ld is on \n", num);
+    	}
+    	else if(strstr(cmd,"servo")){ //if detect substring servo
+    		use_servo(value, num); //SERVO
+    		uart_tx(COM3, "servo %ld is on \n", num);
+    	}
+    	else if(strstr(cmd,"pneumatic")){
+    		use_pneumatic(value, num); //PNEUMATIC
+    		uart_tx(COM3, "pneumatic %ld is on \n", num);
+    	}
+    	bool_need_clear_buffer = 1;
     }
+    int i;
+    for (i = 0; buffer[i] != '\0'; ++i) //to account for the rare simulateneous inputs
+    {
+    	if (buffer[i] == 'w')
+    	{
+    		uart_tx(COM3, "w ");
+    	}
+    	else if (buffer[i] == 'a')
+    	{
+    		uart_tx(COM3, "a ");
+    	}
+    	else if (buffer[i] == 's')
+    	{
+    		uart_tx(COM3, "s ");
+    	}
+    	else if (buffer[i] == 'd')
+    	{
+    		uart_tx(COM3, "d ");
+    	}
+    }
+    if(buffer[i] == '\0' ){ //if the first element of buffer is \0 or the we reached the end of the wasd loop
+    	bool_need_clear_buffer = 1;
+    }
+    buffer_clear();
 }
 void init_all(){
 	led_init();
