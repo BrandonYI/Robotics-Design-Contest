@@ -1,4 +1,6 @@
 #include "main.h"
+#include <stdlib.h>
+#include <string.h>
 
 u32 ticks_img = 0;
 u32 ticks_sec_img = 0;
@@ -21,32 +23,30 @@ char val[10] = "";
 char manual_buffer[100];
 char curKey = '\0';
 
-
 void buffer_clear(){
-		 if (bool_need_clear_buffer) {
-            bool_need_clear_buffer = 0;
-            int k;
-            for (k = 0; k < MAXBUFFER; k++) {
-                buffer[k] = '\0';
-            }
-            for (k = 0; k < 10; k++) {
-                cmd[k] = '\0';
-                val[k] = '\0';
-            }
-        }
+	if (bool_need_clear_buffer) {
+		bool_need_clear_buffer = 0;
+		int k;
+		for (k = 0; k < MAXBUFFER; k++) {
+				buffer[k] = '\0';
+		}
+		for (k = 0; k < 10; k++) {
+				cmd[k] = '\0';
+				val[k] = '\0';
+		}
 	}
+}
 void uart_listener_buffer(const u8 byte) {
 
+
+
+
 }
-
-
-
 void uart_listener(const u8 byte) {
     curTime = get_real_ticks();
     timeSinceLastCommand = 0;
 	  buffer[pointer++] = byte;
     uart_tx(COM3, "BUFFER: %s\n", buffer);
-
     if (byte == '.') {
         bool_command_finish = 1;
         pointer = 0;
@@ -62,8 +62,8 @@ float getMedian(const int a[]) {
     for (int k = 0; k < WINDOWSIZE; k++) { //copy into temporary array
         arr[k] = a[k];
     }
-    int key, j;
-    for (int i = 2; i < WINDOWSIZE; i++) { //selection sort
+    int key, i, j;
+    for (i = 2; i < WINDOWSIZE; i++) { //selection sort
         key = arr[i];
         j = i - 1;
         while (j>0 && arr[j] > key) {
@@ -76,7 +76,6 @@ float getMedian(const int a[]) {
 }
 
 void runMedianFilter(){
-
 		int curWindow[WINDOWSIZE] = {0};
     int indexOfOldest = 0;
     //initialize the window
@@ -125,10 +124,10 @@ void bluetooth_handler(){
 						char *number = &val[0];
             uart_tx(COM3, "NAME: %s\n", cmd);
             uart_tx(COM3, "VAL: %s\n", val);
-						value = strtol(val, &number);
+						value = strtol(val, &number, 10);
 						uart_tx(COM3,"The value is: %ld\n", value);
             if (strcmp("led", cmd) == 0) {
-                if (value==1) {
+                if(value==1) {
                     led_on(LED1);
                     uart_tx(COM3, "TURNED LED 1 ON\n");
                 } else {
@@ -142,43 +141,39 @@ void bluetooth_handler(){
 						
 						//add checking for value 100>value>0
 						
+						//Motors
+						if(value<100 && value>0){
 							if(strcmp("motor0",cmd)==0){
-							if(value<100&&value>0){
-							motor_control(0, 1, value);
-							uart_tx(COM3,"motor0 is on \n");
-							}
+								motor_control(0, 1, value);
+								uart_tx(COM3,"motor0 is on \n");
 							}else if (strcmp("motor1", cmd)==0){
-							if(value<100&&value>0){
-							motor_control(1, 1, value);
-							uart_tx(COM3,"motor1 is on \n");
-							}
+								motor_control(1, 1, value);
+								uart_tx(COM3,"motor1 is on \n");
 							}else if (strcmp("motor2", cmd)==0){
-							if(value<100&&value>0){
-							motor_control(2, 1, value);
-							uart_tx(COM3,"motor2 is on \n");
+								motor_control(2, 1, value);
+								uart_tx(COM3,"motor2 is on \n");
 							}
-							}
-							
-							if(strcmp("servo0",cmd)==0){
+						}
+						else{
+							uart_tx(COM3, "value is out of range\n");
+						}
+						//Servos
+						if(strcmp("servo0",cmd)==0){
 							if(value<1050&&value>450){
 							servo_control(0, value);
 							}
-							else if(strcmp("servo1",cmd)==0){
-							if(value<1050||value>450){
+						}
+						else if(strcmp("servo1",cmd)==0){
+							if(value<1050||value>450){ // Always true ???
 							servo_control(1,value);	
 							}
-							}
-							}
-						 bool_need_clear_buffer = 1;
 						}
+		}
+		bool_need_clear_buffer = 1;
+}
 							
 						
-								
 					
-						
-						
-						
-				}
 						//add checking for value 450<value<1050
 						
 					/*	if(strcmp("manual",cmd)==0){
@@ -217,10 +212,8 @@ int main() {
     int ccdTime = 0;
 
     while (1) {
-				motor_control(0, 1, 5);
-       
-
-        if (get_real_ticks() - ccdTime >= 50) {
+				motor_control(0, 1, 5); //id, direction, magnitude
+        if (get_real_ticks() - ccdTime >= 50) { //Update every 50 ms
             ccdTime = get_real_ticks();
 
             int k;
@@ -236,7 +229,7 @@ int main() {
 								tft_put_pixel(k, 159-medianCCD[k], WHITE);
             }
         }
-
+				
       bluetooth_handler();
 
        
@@ -364,4 +357,4 @@ int main2() {
 
         }
     }
-}⁠⁠⁠⁠
+}
