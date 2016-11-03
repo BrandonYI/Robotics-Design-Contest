@@ -9,8 +9,9 @@ u32 ticks_sec_img = 0;
 u16 servo_pos = 750;
 u8 speed = 20;
 u16 speed_indic[3] = {RGB888TO565(0xC72929), RGB888TO565(0xFFC72C), RGB888TO565(0x40CA77)};
-const int WINDOWSIZE = 30;
 const int MAXBUFFER = 100;
+int buffer_index = 0;
+
 
 int global_led_on = 0;
 int bool_need_clear_buffer = 1;
@@ -19,10 +20,13 @@ int timeSinceLastCommand;
 int curTime;
 int ccdTime = 0;
 int ccd_rate = 50;
-int buffer_index = 0;
+const int CCD_THRESH = 100;
+const int WINDOWSIZE = 15;
+
 
 u8 medianCCD[128] = {0};
 u8 schmittCCD[128] = {0};
+int sumDiffCCD[128] = {0};
 
 char buffer[MAXBUFFER] = {0};
 char manual_buffer[100];
@@ -100,14 +104,23 @@ float getMedian(const int a[]) {
     }
     return (WINDOWSIZE%2==1? arr[WINDOWSIZE/2] : (arr[WINDOWSIZE/2-1]+arr[WINDOWSIZE/2])/2);
 }
-const int WHITE_THRESHOLD = 130;
 void runSchmitt() {
     int k;
     for (k = 0; k < 128; k++) {
-        schmittCCD[k] = (medianCCD[k] < WHITE_THRESHOLD)? 1: 158;
+        schmittCCD[k] = (medianCCD[k] < CCD_THRESH)? 1: 158;
     }
 }
 
+int abs(int a){
+	return a<0? -a: a;
+}
+
+void calculateSumPrefix() {
+    int k;
+    for (k = 0; k < 128-1; k++) {
+        sumDiffCCD[k] = abs(schmittCCD[k]-schmittCCD[k+1]);
+    }
+}
 
 void runMedianFilter() {
     int curWindow[WINDOWSIZE] = {0};
@@ -200,7 +213,7 @@ void init_all() {
     adc_init();
     button_init();
     servo_init(143,10000,0);
-    tft_init(1, BLACK, WHITE);
+    tft_init(2, BLACK, WHITE);
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
     uart_tx(COM3, "initialize\n");
@@ -226,10 +239,24 @@ void init_all() {
 				}*/
 int main() {
     init_all();
-		
-		int h;
+
+    int h;
     while(1) {
         motor_control(0, 1, 5); //id, direction, magnitude
+        if (read_button(BUTTON1) == 0 && servo_pos < 1050) {
+            servo_pos += speed;
+            tft_fill_area(46, 72, 25, 12, BLACK);
+            tft_prints(46, 72, "%d", servo_pos);
+        }
+
+        if (read_button(BUTTON3) == 0 && servo_pos > 450) {
+            servo_pos -= speed;
+            tft_fill_area(46, 72, 25, 12, BLACK);
+            tft_prints(46, 72, "%d", servo_pos);
+        }
+				
+				servo_control(SERVO1, servo_pos);
+
         if (get_real_ticks() - ccdTime >= ccd_rate) { //Update by CCD Rate
             ccdTime = get_real_ticks();
             int k;
@@ -242,6 +269,7 @@ int main() {
             linear_ccd_read();
             runMedianFilter();
             runSchmitt();
+						calculateSumPrefix();
 
             for (k = 0; k < 128; k++) { //Add CCD onto Screen
                 tft_put_pixel(k, 159-linear_ccd_buffer1[k], RED);
