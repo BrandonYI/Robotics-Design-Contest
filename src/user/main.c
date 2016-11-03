@@ -32,6 +32,22 @@ char buffer[MAXBUFFER] = {0};
 char manual_buffer[100];
 char curKey = '\0';
 
+const int RIGHT = 930;
+const int LEFT = 1090;
+
+void change_speed(void) {
+    static u8 count = 0;
+    count++;
+    speed = 20; //case 0
+    switch (count % 3) {
+    case 2: //speed = 60
+        speed += 20;
+    case 1: //speed = 40
+        speed += 20;
+    }
+    tft_fill_area(72, 72, 12, 12, speed_indic[count % 3]);
+}
+
 void use_motor(long value, long id) {
     if(value<100 && value>0) {
         motor_control((MOTOR_ID)id, 1, value);
@@ -212,12 +228,13 @@ void init_all() {
     linear_ccd_init();
     adc_init();
     button_init();
+	  set_keydown_listener(BUTTON2, &change_speed);
     servo_init(143,10000,0);
     tft_init(2, BLACK, WHITE);
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
     uart_tx(COM3, "initialize\n");
-    motor_init(143, 10000, 0);
+    //motor_init(143, 10000, 0);
 }
 /*	if(strcmp("manual",cmd)==0){
 							if(curKey=='w'){
@@ -237,25 +254,29 @@ void init_all() {
 
 
 				}*/
+
+
 int main() {
     init_all();
 
     int h;
     while(1) {
-        motor_control(0, 1, 5); //id, direction, magnitude
-        if (read_button(BUTTON1) == 0 && servo_pos < 1050) {
+        //motor_control(0, 1, 5); //id, direction, magnitude
+        if (read_button(BUTTON1) == 0 && servo_pos < 2400) {
             servo_pos += speed;
             tft_fill_area(46, 72, 25, 12, BLACK);
             tft_prints(46, 72, "%d", servo_pos);
+						servo_control(SERVO1, servo_pos);
+	
         }
 
-        if (read_button(BUTTON3) == 0 && servo_pos > 450) {
+        if (read_button(BUTTON3) == 0 && servo_pos > 600) {
             servo_pos -= speed;
             tft_fill_area(46, 72, 25, 12, BLACK);
             tft_prints(46, 72, "%d", servo_pos);
+						servo_control(SERVO1, servo_pos);
         }
 				
-				servo_control(SERVO1, servo_pos);
 
         if (get_real_ticks() - ccdTime >= ccd_rate) { //Update by CCD Rate
             ccdTime = get_real_ticks();
@@ -291,18 +312,7 @@ void button1_keydown(void) {led_toggle(LED1);}
 void button2_keydown(void) {led_toggle(LED2);}
 void button3_keydown(void) {led_toggle(LED3);}
 */
-void change_speed(void) {
-    static u8 count = 0;
-    count++;
-    speed = 20; //case 0
-    switch (count % 3) {
-    case 2: //speed = 60
-        speed += 20;
-    case 1: //speed = 40
-        speed += 20;
-    }
-    tft_fill_area(72, 72, 12, 12, speed_indic[count % 3]);
-}
+
 
 
 //UART listener
