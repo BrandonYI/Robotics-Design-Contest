@@ -21,7 +21,7 @@ int curTime;
 int ccdTime = 0;
 int ccd_rate = 50;
 const int CCD_THRESH = 100;
-const int WINDOWSIZE = 15;
+const int WINDOWSIZE = 20;
 
 
 u8 medianCCD[128] = {0};
@@ -32,8 +32,9 @@ char buffer[MAXBUFFER] = {0};
 char manual_buffer[100];
 char curKey = '\0';
 
-const int RIGHT = 930;
-const int LEFT = 1090;
+const int RIGHTMOST = 930;
+const int LEFTMOST = 1090;
+const int CENTER = 1010;
 
 void change_speed(void) {
     static u8 count = 0;
@@ -131,11 +132,37 @@ int abs(int a){
 	return a<0? -a: a;
 }
 
-void calculateSumPrefix() {
+void calculateSumPrefix(int* leftCandidate, int* rightCandidate) {
     int k;
     for (k = 0; k < 128-1; k++) {
-        sumDiffCCD[k] = abs(schmittCCD[k]-schmittCCD[k+1]);
+        sumDiffCCD[k] = schmittCCD[k]-schmittCCD[k+1];
     }
+		
+		for (k = 0; k < 63; k++){ //negative value means close to left edge
+			if (sumDiffCCD[k] < 0){
+				*leftCandidate = k;
+				break;
+			}
+		}
+		
+		for (k = 63; k < 127; k++){
+			if (sumDiffCCD[k] > 0){
+				*leftCandidate = k;
+				break;
+			}
+		}
+}
+
+void drawLine(int val, int isHorizontal, u16 color){
+	int k;
+	if (isHorizontal){
+		for (k = 0; k < 159; k++)
+			tft_put_pixel(k, val, color);
+	} else{
+		for (k = 0; k < 159; k++){
+			tft_put_pixel(val, k, color);
+		}
+	}
 }
 
 void runMedianFilter() {
@@ -260,17 +287,19 @@ int main() {
     init_all();
 
     int h;
+		int dir; 
+		int leftEdge, rightEdge;
+	
     while(1) {
         //motor_control(0, 1, 5); //id, direction, magnitude
-        if (read_button(BUTTON1) == 0 && servo_pos < 2400) {
+        if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
             servo_pos += speed;
             tft_fill_area(46, 72, 25, 12, BLACK);
             tft_prints(46, 72, "%d", servo_pos);
 						servo_control(SERVO1, servo_pos);
-	
         }
 
-        if (read_button(BUTTON3) == 0 && servo_pos > 600) {
+        if (read_button(BUTTON3) == 0 && servo_pos > RIGHTMOST) {
             servo_pos -= speed;
             tft_fill_area(46, 72, 25, 12, BLACK);
             tft_prints(46, 72, "%d", servo_pos);
@@ -285,17 +314,34 @@ int main() {
                 tft_put_pixel(k, 159-linear_ccd_buffer1[k], BLACK);
                 tft_put_pixel(k, 159-medianCCD[k], BLACK);
                 tft_put_pixel(k, 159-schmittCCD[k], BLACK);
-
             }
+						drawLine(dir, 0, BLACK);
+						if (leftEdge != -1){
+							drawLine(leftEdge, 0, BLACK);
+						} 
+						if (rightEdge != 160){
+							drawLine(rightEdge, 0, BLACK);
+						}
+						
             linear_ccd_read();
             runMedianFilter();
             runSchmitt();
-						calculateSumPrefix();
-
+						
+						leftEdge = -1;
+						rightEdge = 160;
+						calculateSumPrefix(&leftEdge, &rightEdge);
+						
+						//tft_fill_area(50, 50, 60, 20, BLACK);
+						if (leftEdge != -1){
+							drawLine(leftEdge, 0, GREEN);
+						} 
+						if (rightEdge != 160){
+							drawLine(rightEdge, 0, GREEN);
+						}
+						
             for (k = 0; k < 128; k++) { //Add CCD onto Screen
                 tft_put_pixel(k, 159-linear_ccd_buffer1[k], RED);
                 tft_put_pixel(k, 159-schmittCCD[k], GREEN);
-
                 tft_put_pixel(k, 159-medianCCD[k], WHITE);
             }
             for(h = 0; h < 159; h+=20) {
