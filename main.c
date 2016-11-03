@@ -20,51 +20,47 @@ int ccdTime = 0;
 int ccd_rate = 50;
 int buffer_index = 0;
 
+char *cmdptr;
+char *valptr;
+char *idptr;
 char medianCCD[128] = {0};
 char buffer[MAXBUFFER] = {0};
-char cmd[10] = "";
-char num[10] = "";
-char val[10] = "";
 char manual_buffer[100];
 char curKey = '\0';
 
-void use_motor(long value, long num){
+void use_motor(long value, long id){
     if(value<100 && value>0){
-        motor_control((MOTOR_ID)num, 1, value);
+        motor_control((MOTOR_ID)id, 1, value);
 	}else{
 		uart_tx(COM3, "motor value is out of range\n");
 	}
 }
-void use_servo(long value, long num){
+void use_servo(long value, long id){
     if(value<1050&&value>450){
-        servo_control((SERVO_ID)num, value);
+        servo_control((SERVO_ID)id, value);
     }else{
         uart_tx(COM3, "servo value is out of range\n");
     }
 }
-void use_pneumatic(long value, long num){
-	pneumatic_control((PNEUMATIC_ID)num, value); //1 is on, others is off
+void use_pneumatic(long value, long id){
+	pneumatic_control((PNEUMATIC_ID)id, value); //1 is on, others is off
 }
-void use_led(long value, long num){
+void use_led(long value, long id){
     if(value == 1) {
-        led_on((LED_ID)num);
-        uart_tx(COM3, "TURNED LED %ld ON\n", num);
+        led_on((LED_ID)id);
+        uart_tx(COM3, "TURNED LED %ld ON\n", id);
     }else{
-        led_off((LED_ID)num);
-        uart_tx(COM3, "TURNED LED %ld OFF\n", num);
+        led_off((LED_ID)id);
+        uart_tx(COM3, "TURNED LED %ld OFF\n", id);
     }
 }
 void buffer_clear(){
 	if (bool_need_clear_buffer) {
 		bool_need_clear_buffer = 0;
-		int k;
-		for (k = 0; k < MAXBUFFER; k++) {
-            buffer[k] = '\0';
-		}
-		for (k = 0; k < 10; ++k) {
-			cmd[k] = '\0';
-			val[k] = '\0';
-		}
+		strcpy(buffer, "");
+		cmdptr = NULL;
+		valptr = NULL;
+		uart_tx(COM3, "\nBuffer: ");
 	}
 }
 void uart_listener_buffer(const u8 byte) {
@@ -74,15 +70,19 @@ void uart_listener(const u8 byte) {
     curTime = get_real_ticks();
     timeSinceLastCommand = 0;
 	buffer[buffer_index++] = byte;
-    uart_tx(COM3, "BUFFER: %s\n", buffer);
+    uart_tx(COM3, "%c", byte);
     if (byte == '.') {
         bool_command_finish = 1;
         buffer_index = 0;
     }
-    if (curKey != byte){
+    if(byte == 'x'){	//If you make a typo, press x to reset buffer
+    	bool_need_clear_buffer = 1;
+    	buffer_index = 0;
+    }
+    /*if (curKey != byte){
         uart_tx(COM3, "received: %c\n", byte);
     }
-    curKey = byte;
+    curKey = byte;*/
 }
 float getMedian(const int a[]) {
     int arr[WINDOWSIZE] = {0};
@@ -134,76 +134,60 @@ void runMedianFilter(){
 }
 void bluetooth_handler(){ 
     if (bool_command_finish){
-    	long value=0; //Value
-    	long num=0; //Command Number(e.g. motor 0/1/2/3)
-    	int i,j;
-    	int val_index = 0;
     	bool_command_finish = 0;
-    	for (i = 0; buffer[i] != ':'; ++i) { //Separate buffer into cmd and val
-    		cmd[i] = buffer[i];
-    	}
-    	for(j = i+1; buffer[j] != '.'; ++j){
-    		val[val_index++] = buffer[j];
-    	}
+   		uart_tx(COM3, "\nCOMPLETE COMMAND: %s\n", buffer);
 
-    	char *cmdptr = cmd; //cmd pointer
-    	char *valptr = val; //val pointer
-    	while (*cmdptr) { // While there are more characters to process
-            //isdigit(*cmdptr)? num = strtol(cmd &cmdptr, 10): cmdptr++;
-            if (isdigit(*cmdptr)) { // Upon finding a digit
-                num = strtol(cmd, &cmdptr, 10); // Read a number
-            }else { // Otherwise, move on to the next character.
-                cmdptr++;
-            }
-        }
-    	value = strtol(val, &valptr, 10);
-
-    	uart_tx(COM3, "COMPLETE COMMAND: %s\n", buffer);
-    	uart_tx(COM3, "NAME: %s\n", cmd);
-    	uart_tx(COM3, "VAL: %s\n", val);
-    	uart_tx(COM3,"The value is: %ld\n", value); //Delete later?
+    	long val=0; //Value
+    	long id=0; //Command idber(e.g. motor 0/1/2/3)
+    	cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
+    	valptr = cmdptr + 1;
+    	idptr = cmdptr - 1;
+    	val = strtol(valptr, NULL,10); //Obtain Value
+    	cmdptr = NULL;
+    	id = strtol(idptr, NULL,10); //Obtain ID
+    	idptr = NULL;
+    	uart_tx(COM3, "COMMAND: %s   ", buffer);
+    	uart_tx(COM3, "ID: %ld   ", id);
+    	uart_tx(COM3, "VAL: %ld\n", val);
     	
-    	if(strstr(cmd, "led")){ //if detect substring led(strstr returns a pointer)
+    	if(strstr(buffer, "led")){ //if detect substring led(strstr returns a pointer)
     		bool_need_clear_buffer = 1;
-    		use_led(value, num); //LED
+    		use_led(val, id); //LED
     	}
-    	else if(strstr(cmd,"motor")){ //if detect substring motor
-    		use_motor(value, num); //MOTOR
-    		uart_tx(COM3,"motor %ld is on \n", num);
+    	else if(strstr(buffer,"motor")){ //if detect substring motor
+    		use_motor(val, id); //MOTOR
+    		uart_tx(COM3,"motor %ld is on \n", id);
     	}
-    	else if(strstr(cmd,"servo")){ //if detect substring servo
-    		use_servo(value, num); //SERVO
-    		uart_tx(COM3, "servo %ld is on \n", num);
+    	else if(strstr(buffer,"servo")){ //if detect substring servo
+    		use_servo(val, id); //SERVO
+    		uart_tx(COM3, "servo %ld is on \n", id);
     	}
-    	else if(strstr(cmd,"pneumatic")){
-    		use_pneumatic(value, num); //PNEUMATIC
-    		uart_tx(COM3, "pneumatic %ld is on \n", num);
+    	else if(strstr(buffer,"pneumatic")){
+    		use_pneumatic(val, id); //PNEUMATIC
+    		uart_tx(COM3, "pneumatic %ld is on \n", id);
     	}
     	bool_need_clear_buffer = 1;
     }
+    /*//TODO: Consider adding a manual command so that letters do not overlap? Test if current program will work on STM32
     int i;
     for (i = 0; buffer[i] != '\0'; ++i) //to account for the rare simulateneous inputs
     {
-    	if (buffer[i] == 'w')
-    	{
-    		uart_tx(COM3, "w ");
+    	if (buffer[i] == 'w'){ //considering switch statements for readibility
+    		uart_tx(COM3, "w "); //up arrow 0x0E
     	}
-    	else if (buffer[i] == 'a')
-    	{
-    		uart_tx(COM3, "a ");
+    	else if (buffer[i] == 'a'){//How to account for the a in 'pneumatic'
+    		uart_tx(COM3, "a "); //left arrow 0x0B
     	}
-    	else if (buffer[i] == 's')
-    	{
-    		uart_tx(COM3, "s ");
+    	else if (buffer[i] == 's'){ //How to account for the s when typing in the command 'servo' 
+    		uart_tx(COM3, "s "); //down arrow 0x0C
     	}
-    	else if (buffer[i] == 'd')
-    	{
-    		uart_tx(COM3, "d ");
+    	else if (buffer[i] == 'd'){
+    		uart_tx(COM3, "d "); //right arrow 0x07
     	}
     }
     if(buffer[i] == '\0' ){ //if the first element of buffer is \0 or the we reached the end of the wasd loop
-    	bool_need_clear_buffer = 1;
-    }
+    	bool_need_clear_buffer = 1; //TODO:Set a time interval where the command is not nullified
+    }*/
     buffer_clear();
 }
 void init_all(){
