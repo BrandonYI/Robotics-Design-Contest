@@ -226,6 +226,8 @@ void init_all() {
 				}*/
 int main() {
     init_all();
+		
+		int h;
     while(1) {
         motor_control(0, 1, 5); //id, direction, magnitude
         if (get_real_ticks() - ccdTime >= ccd_rate) { //Update by CCD Rate
