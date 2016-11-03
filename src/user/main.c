@@ -138,16 +138,16 @@ void calculateSumPrefix(int* leftCandidate, int* rightCandidate) {
         sumDiffCCD[k] = schmittCCD[k]-schmittCCD[k+1];
     }
 		
-		for (k = 0; k < 63; k++){ //negative value means close to left edge
+		for (k = 0; k < 127; k++){ //negative value means close to left edge
 			if (sumDiffCCD[k] < 0){
 				*leftCandidate = k;
 				break;
 			}
 		}
 		
-		for (k = 63; k < 127; k++){
+		for (k = 126; k >= 0; k++){
 			if (sumDiffCCD[k] > 0){
-				*leftCandidate = k;
+				*rightCandidate = k;
 				break;
 			}
 		}
