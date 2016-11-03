@@ -20,9 +20,6 @@ int ccdTime = 0;
 int ccd_rate = 50;
 int buffer_index = 0;
 
-char *cmdptr;
-char *valptr;
-char *idptr;
 char medianCCD[128] = {0};
 char buffer[MAXBUFFER] = {0};
 char manual_buffer[100];
@@ -57,9 +54,7 @@ void use_led(long value, long id){
 void buffer_clear(){
 	if (bool_need_clear_buffer) {
 		bool_need_clear_buffer = 0;
-		strcpy(buffer, "");
-		cmdptr = NULL;
-		valptr = NULL;
+		buffer_index = 0;
 		uart_tx(COM3, "\nBuffer: ");
 	}
 }
@@ -70,6 +65,7 @@ void uart_listener(const u8 byte) {
     curTime = get_real_ticks();
     timeSinceLastCommand = 0;
 	buffer[buffer_index++] = byte;
+	buffer[buffer_index] = '\0';
     uart_tx(COM3, "%c", byte);
     if (byte == '.') {
         bool_command_finish = 1;
@@ -137,15 +133,13 @@ void bluetooth_handler(){
     	bool_command_finish = 0;
    		uart_tx(COM3, "\nCOMPLETE COMMAND: %s\n", buffer);
 
-    	long val=0; //Value
-    	long id=0; //Command idber(e.g. motor 0/1/2/3)
-    	cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
-    	valptr = cmdptr + 1;
-    	idptr = cmdptr - 1;
-    	val = strtol(valptr, NULL,10); //Obtain Value
-    	cmdptr = NULL;
-    	id = strtol(idptr, NULL,10); //Obtain ID
-    	idptr = NULL;
+    	char* cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
+    	char* valptr = cmdptr + 1;
+    	char* idptr = cmdptr - 1;
+    	int val = strtol(valptr, NULL,10); //Obtain Value
+    	*cmdptr = '\0';
+    	int id = strtol(idptr, NULL,10); //Obtain ID
+    	*idptr = '\0';
     	uart_tx(COM3, "COMMAND: %s   ", buffer);
     	uart_tx(COM3, "ID: %ld   ", id);
     	uart_tx(COM3, "VAL: %ld\n", val);
