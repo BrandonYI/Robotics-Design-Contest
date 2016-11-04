@@ -21,7 +21,7 @@ int curTime;
 int ccdTime = 0;
 int ccd_rate = 50;
 const int CCD_THRESH = 100;
-const int WINDOWSIZE = 20;
+const int WINDOWSIZE = 10;
 
 
 u8 medianCCD[128] = {0};
@@ -145,7 +145,7 @@ void calculateSumPrefix(int* leftCandidate, int* rightCandidate) {
 			}
 		}
 		
-		for (k = 126; k >= 0; k++){
+		for (k = 126; k >= 0; k--){
 			if (sumDiffCCD[k] > 0){
 				*rightCandidate = k;
 				break;
@@ -261,7 +261,7 @@ void init_all() {
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
     uart_tx(COM3, "initialize\n");
-    //motor_init(143, 10000, 0);
+    motor_init(143, 10000, 0);
 }
 /*	if(strcmp("manual",cmd)==0){
 							if(curKey=='w'){
@@ -289,9 +289,10 @@ int main() {
     int h;
 		int dir; 
 		int leftEdge, rightEdge;
+		int avg = 0;
 	
     while(1) {
-        //motor_control(0, 1, 5); //id, direction, magnitude
+        //motor_control(0, 0, 50); //id, direction, magnitude
         if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
             servo_pos += speed;
             tft_fill_area(46, 72, 25, 12, BLACK);
@@ -315,29 +316,46 @@ int main() {
                 tft_put_pixel(k, 159-medianCCD[k], BLACK);
                 tft_put_pixel(k, 159-schmittCCD[k], BLACK);
             }
-						drawLine(dir, 0, BLACK);
+						
 						if (leftEdge != -1){
 							drawLine(leftEdge, 0, BLACK);
 						} 
-						if (rightEdge != 160){
+						if (rightEdge != -1){
 							drawLine(rightEdge, 0, BLACK);
 						}
-						
+						drawLine(avg, 0, BLACK);
+
             linear_ccd_read();
             runMedianFilter();
             runSchmitt();
 						
 						leftEdge = -1;
-						rightEdge = 160;
+						rightEdge = 128;
 						calculateSumPrefix(&leftEdge, &rightEdge);
 						
 						//tft_fill_area(50, 50, 60, 20, BLACK);
 						if (leftEdge != -1){
 							drawLine(leftEdge, 0, GREEN);
 						} 
-						if (rightEdge != 160){
+						if (rightEdge != 128){
 							drawLine(rightEdge, 0, GREEN);
+						}						
+						
+						avg = (leftEdge+rightEdge)/2;
+						drawLine(avg, 0, RED);
+						
+						tft_fill_area(50, 50, 50, 20, BLACK);
+						
+						if (avg < 64-10){
+							tft_prints(50, 50, "go left");
+							servo_control(SERVO1, CENTER+ (LEFTMOST-CENTER)*((64-avg)/10.0));
+						} else if (avg > 64+10){
+							tft_prints(50, 50, "go right");
+							servo_control(SERVO1, CENTER- (CENTER-RIGHTMOST)*((avg-64)/10.0));
+						} else {
+							servo_control(SERVO1, CENTER);
 						}
+						
 						
             for (k = 0; k < 128; k++) { //Add CCD onto Screen
                 tft_put_pixel(k, 159-linear_ccd_buffer1[k], RED);
