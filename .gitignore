@@ -1,8 +1,12 @@
 /DebugConfig
 /Listings
 /Objects
+/src/library
+/src/stm32f10_startup
+/src/stm32f10x_std
 
-.bat
-.uvguix.Forsythe
-.uvoptx
-.uvprojx
+
+flash.bat
+ustrobo16_internal.uvguix.Forsythe
+ustrobo16_internal.uvoptx
+ustrobo16_internal.uvprojx
