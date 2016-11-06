@@ -1,5 +1,5 @@
-.\objects\buzzer.o: src\library\buzzer.c
-.\objects\buzzer.o: src\library\buzzer.h
+.\objects\buzzer.o: buzzer.c
+.\objects\buzzer.o: buzzer.h
 .\objects\buzzer.o: .\src\stm32f10x_std\inc\stm32f10x_gpio.h
 .\objects\buzzer.o: .\src\stm32f10x_std\inc\stm32f10x.h
 .\objects\buzzer.o: .\src\stm32f10x_std\inc\core_cm3.h
