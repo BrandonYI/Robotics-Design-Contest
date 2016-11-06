@@ -2,7 +2,7 @@
 /Listings
 /Objects
 /src/library
-/src/stm32f10_startup
+/src/stm32f10x_startup
 /src/stm32f10x_std
 
 
