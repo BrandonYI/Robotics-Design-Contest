@@ -12,7 +12,6 @@ u16 speed_indic[3] = {RGB888TO565(0xC72929), RGB888TO565(0xFFC72C), RGB888TO565(
 const int MAXBUFFER = 100;
 int buffer_index = 0;
 
-
 char global_led_on = 0;
 char bool_need_clear_buffer = 1;
 char bool_command_finish = 0;
@@ -24,7 +23,6 @@ int ccdTime = 0;
 int ccd_rate = 50;
 const int CCD_THRESH = 100;
 const int WINDOWSIZE = 10;
-
 
 u8 medianCCD[128] = {0};
 u8 schmittCCD[128] = {0};
@@ -105,6 +103,7 @@ void uart_listener(const u8 byte) {
     }
     if (byte == 'x') {  //If you make a typo, press x to reset buffer
         bool_need_clear_buffer = 1;
+        manual_mode = 0;
         buffer_index = 0;
     }
 }
@@ -248,8 +247,6 @@ void bluetooth_handler() {
 	    		uart_tx(COM3, "s ");
 	    	case 'd':
 	    		uart_tx(COM3, "d ");
-	    	case 'x':
-	    		manual_mode = 0;
 	    	default:
 	    		bool_need_clear_buffer = 1;
 	    }
@@ -296,8 +293,7 @@ int main() {
             tft_prints(46, 72, "%d", servo_pos);
             servo_control(SERVO1, servo_pos);
         }
-
-
+        //This is a comment
         if (get_real_ticks() - ccdTime >= ccd_rate) { //Update by CCD Rate
             ccdTime = get_real_ticks();
             int k;
@@ -358,16 +354,6 @@ int main() {
         bluetooth_handler();
     }
 }
-
-//Button listeners
-/*
-void button1_keydown(void) {led_toggle(LED1);}
-void button2_keydown(void) {led_toggle(LED2);}
-void button3_keydown(void) {led_toggle(LED3);}
-*/
-
-
-
 //UART listener
 void uart3_listener(const u8 byte) {
     u8 ledno = byte - (u8) '1';
