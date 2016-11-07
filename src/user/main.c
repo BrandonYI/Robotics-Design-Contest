@@ -293,7 +293,7 @@ int main() {
             tft_prints(46, 72, "%d", servo_pos);
             servo_control(SERVO1, servo_pos);
         }
-        //This is a comment
+        //This is a commentabc
         if (get_real_ticks() - ccdTime >= ccd_rate) { //Update by CCD Rate
             ccdTime = get_real_ticks();
             int k;
