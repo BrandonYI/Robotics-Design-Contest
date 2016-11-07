@@ -22,6 +22,7 @@ int ccdTime = 0;
 int ccd_rate = 50;
 const int CCD_THRESH = 100;
 const int WINDOWSIZE = 10;
+const int MOVEMENT_SENS = 8;
 
 
 u8 medianCCD[128] = {0};
@@ -35,6 +36,14 @@ char curKey = '\0';
 const int RIGHTMOST = 930;
 const int LEFTMOST = 1090;
 const int CENTER = 1010;
+
+int clamp(int val, int min, int max){
+	if (val < min)
+		return min;
+	if (val > max)
+		return max;
+	return val;	
+}
 
 void change_speed(void) {
     static u8 count = 0;
@@ -344,16 +353,27 @@ int main() {
 						avg = (leftEdge+rightEdge)/2;
 						drawLine(avg, 0, RED);
 						
-						tft_fill_area(50, 50, 50, 20, BLACK);
+						tft_fill_area(38, 50, 80, 20, BLACK);
 						
-						if (avg < 64-10){
-							tft_prints(50, 50, "go left");
-							servo_control(SERVO1, CENTER+ (LEFTMOST-CENTER)*((64-avg)/10.0));
-						} else if (avg > 64+10){
-							tft_prints(50, 50, "go right");
-							servo_control(SERVO1, CENTER- (CENTER-RIGHTMOST)*((avg-64)/10.0));
+						drawLine(64-MOVEMENT_SENS, 0, WHITE);
+						drawLine(64+MOVEMENT_SENS, 0, WHITE);
+						if (avg < 64-MOVEMENT_SENS){
+							tft_prints(38, 50, "L %d%", 
+								clamp(CENTER+ (LEFTMOST-CENTER)*((64-avg)/20.0), RIGHTMOST, LEFTMOST)
+							);
+							servo_control(SERVO1, 
+								clamp(CENTER+ (LEFTMOST-CENTER)*((64-avg)/20.0), RIGHTMOST, LEFTMOST)
+							);
+						} else if (avg > 64+MOVEMENT_SENS){
+							tft_prints(38, 50, "R %d%", 
+								clamp(CENTER- (CENTER-RIGHTMOST)*((avg-64)/20.0), RIGHTMOST, LEFTMOST)
+							);
+							servo_control(SERVO1, 
+								clamp(CENTER- (CENTER-RIGHTMOST)*((avg-64)/20.0), RIGHTMOST, LEFTMOST)
+							);
 						} else {
 							servo_control(SERVO1, CENTER);
+							tft_prints(50, 50, "%d", CENTER);
 						}
 						
 						
