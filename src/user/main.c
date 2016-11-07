@@ -13,9 +13,11 @@ const int MAXBUFFER = 100;
 int buffer_index = 0;
 
 
-int global_led_on = 0;
-int bool_need_clear_buffer = 1;
-int bool_command_finish = 0;
+char global_led_on = 0;
+char bool_need_clear_buffer = 1;
+char bool_command_finish = 0;
+char manual_mode = 0;
+
 int timeSinceLastCommand;
 int curTime;
 int ccdTime = 0;
@@ -97,18 +99,14 @@ void uart_listener(const u8 byte) {
     buffer[buffer_index++] = byte;
     buffer[buffer_index] = '\0';
     uart_tx(COM3, "%c", byte);
-    if (byte == '.') {
+    if (byte == '.') {  //Mark end of command
         bool_command_finish = 1;
         buffer_index = 0;
     }
-    if (byte == 'x') {    //If you make a typo, press x to reset buffer
+    if (byte == 'x') {  //If you make a typo, press x to reset buffer
         bool_need_clear_buffer = 1;
         buffer_index = 0;
     }
-    /*if (curKey != byte){
-        uart_tx(COM3, "received: %c\n", byte);
-    }
-    curKey = byte;*/
 }
 
 float getMedian(const int a[]) {
@@ -209,7 +207,7 @@ void bluetooth_handler() {
         bool_command_finish = 0;
         uart_tx(COM3, "\nCOMPLETE COMMAND: %s\n", buffer);
 
-        char *cmdptr = strchr(buffer, ':');    //Locate ptr where the char : is first found
+        char *cmdptr = strchr(buffer, ':'); //Locate ptr where the char : is first found
         char *valptr = cmdptr + 1;
         char *idptr = cmdptr - 1;
         int val = strtol(valptr, NULL, 10); //Obtain Value
@@ -235,26 +233,27 @@ void bluetooth_handler() {
         }
         bool_need_clear_buffer = 1;
     }
-    /*//TODO: Consider adding a manual command so that letters do not overlap? Test if current program will work on STM32
-    int i;
-    for (i = 0; buffer[i] != '\0'; ++i) //to account for the rare simulateneous inputs
-    {
-    	if (buffer[i] == 'w'){ //considering switch statements for readibility
-    		uart_tx(COM3, "w "); //up arrow 0x0E
-    	}
-    	else if (buffer[i] == 'a'){//How to account for the a in 'pneumatic'
-    		uart_tx(COM3, "a "); //left arrow 0x0B
-    	}
-    	else if (buffer[i] == 's'){ //How to account for the s when typing in the command 'servo'
-    		uart_tx(COM3, "s "); //down arrow 0x0C
-    	}
-    	else if (buffer[i] == 'd'){
-    		uart_tx(COM3, "d "); //right arrow 0x07
-    	}
+    if(strstr(buffer, "manual")) {
+    	manual_mode = 1;
+    	bool_need_clear_buffer = 1;
     }
-    if(buffer[i] == '\0' ){ //if the first element of buffer is \0 or the we reached the end of the wasd loop
-    	bool_need_clear_buffer = 1; //TODO:Set a time interval where the command is not nullified
-    }*/
+    //TODO: Need to test on car
+    if(manual_mode){
+	    switch (buffer[0]) {
+	    	case 'w':
+	    		uart_tx(COM3, "w ");
+	    	case 'a':
+	    		uart_tx(COM3, "a ");
+	    	case 's':
+	    		uart_tx(COM3, "s ");
+	    	case 'd':
+	    		uart_tx(COM3, "d ");
+	    	case 'x':
+	    		manual_mode = 0;
+	    	default:
+	    		bool_need_clear_buffer = 1;
+	    }
+	}
     buffer_clear();
 }
 
@@ -270,28 +269,9 @@ void init_all() {
     tft_init(2, BLACK, WHITE);
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
-    uart_tx(COM3, "initialize\n");
+    uart_tx(COM3, "initialize\nFormat -- CommandId:Val.");
     motor_init(143, 10000, 0);
 }
-
-/*	if(strcmp("manual",cmd)==0){
-							if(curKey=='w'){
-
-
-							}
-						if (curKey != '\0' && get_real_ticks() - curTime >= 200) {
-            uart_tx(COM3, "%c released\n", curKey);
-            curKey = '\0';
-            curTime = get_real_ticks();
-        }
-			}
-
-
-						}
-						if(strcmp("auto",cmd)==0){
-
-
-				}*/
 
 int main() {
     init_all();
@@ -365,7 +345,6 @@ int main() {
             } else {
                 servo_control(SERVO1, CENTER);
             }
-
 
             for (k = 0; k < 128; k++) { //Add CCD onto Screen
                 tft_put_pixel(k, 159 - linear_ccd_buffer1[k], RED);
