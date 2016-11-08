@@ -425,15 +425,15 @@ int main() {
 		int curTime = 0;
 		
 		u32 loops = 0;
-		
+		/* //shooter
 		while (1) {
 				//tft_fill_area(40, 0, 30, 30, BLACK);
 				//tft_prints(40, 0, "A: %d", read_gpio(GPIOA, GPIO_Pin_11));
 				//tft_prints(40, 10, "B: %d", read_gpio(GPIOA, GPIO_Pin_12));
-				//tft_prints(40, 20, "%d", getDistance(curTime)/*encPos*/);
+				//tft_prints(40, 20, "%d", getDistance(curTime) encPos);
 			
 
-				uart_tx(COM3, "%d %d     sum: %d \n", read_gpio(GPIOA, GPIO_Pin_11), read_gpio(GPIOA, GPIO_Pin_12), encPos);
+				uart_tx(COM3, "%d %d     sum: %d \n", read_gpio(GPIOA, GPIO_Pin_11), read_gpio(GPIOA, GPIO_Pin_12), sumA);
 				
 				curA = read_gpio(GPIOA, GPIO_Pin_11);
 				isA = curA;
@@ -442,6 +442,7 @@ int main() {
 				}
 				curB = read_gpio(GPIOA, GPIO_Pin_12);
 				encPos += encoderArr[bitStringToInt(oldA, oldB)][bitStringToInt(curA, curB)];
+
 				
 				oldA = curA;
 				oldB = curB;
@@ -451,26 +452,12 @@ int main() {
 					wasA = 0;
 				}
 			}
-			
-		
-			/*
-			tft_fill_area(0, 10, 30, 10, BLACK);
-			tft_prints(0, 10, "%d %d", read_gpio(GPIOA, GPIO_Pin_11), read_gpio(GPIOA, GPIO_Pin_12));
-			n = read_gpio(GPIOA, GPIO_Pin_11);
+	*/
 
-			if ((encoder0PinALast == 0) && (n == 1)) {
-					if (read_gpio(GPIOA, GPIO_Pin_12) == 0) {
-							encoder0Pos--;
-					} else {
-							encoder0Pos++;
-					}
-					tft_fill_area(0, 0, 30, 10, BLACK);
-					tft_prints(0, 0, "%d", encoder0Pos);
-			}
-			encoder0PinALast = n;
-		}*/
- 
-		/*while (1){
+			
+	
+ /*
+		while (1){
 			tft_prints(0, 0, "calibrate ccd on dark area");
 			tft_prints(10, 10, "press any button to continue");
 			if (read_button(BUTTON1) == 0 || read_button(BUTTON2) == 0 || read_button(BUTTON3) == 0){
@@ -487,7 +474,7 @@ int main() {
 		}
 		
 		tft_clear();
-	
+	*/
     while(1) {
         //motor_control(0, 0, 50); //id, direction, magnitude
         if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
@@ -523,7 +510,7 @@ int main() {
 						drawLine(avg, 0, BLACK);
 
             linear_ccd_read();
-						calibrate_ccd();
+						//calibrate_ccd();
             runMedianFilter();
             runSchmitt();
 						
@@ -577,7 +564,7 @@ int main() {
             }
         }
         bluetooth_handler();
-    }*/
+			}
 }
 
 //Button listeners
