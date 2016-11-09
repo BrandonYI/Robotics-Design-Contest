@@ -439,7 +439,9 @@ int main() {
     adc_init();
     button_init();
     set_keydown_listener(BUTTON2, &change_speed);
-    //servo_init(143,10000,0);
+		if (IS_SHOOTER_ROBOT == 0){ //cant use servo if you're using encoders because both use timer 3
+			servo_init(143,10000,0);
+		}
     tft_init(2, BLACK, WHITE);
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
@@ -493,7 +495,6 @@ int main() {
                 tft_prints(46, 72, "%d", servo_pos);
                 servo_control(SERVO1, servo_pos);
             }
-
 
             if (get_real_ticks() - ccdTime >= ccd_rate) { //Update by CCD Rate
                 ccdTime = get_real_ticks();
@@ -563,7 +564,7 @@ int main() {
                     tft_put_pixel(k, 159-medianCCD[k], WHITE);
                 }
                 int h;
-                for(h = 0; h < 159; h+=20) {
+                for(h = 0; h < 159; h+=20) { //draw label
                     tft_prints(2, h, "%d", 159-h);
                 }
             }
