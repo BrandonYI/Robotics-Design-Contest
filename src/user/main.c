@@ -432,7 +432,7 @@ void TIM4_Configuration(void) {
 /*****************************************************/
 
 int main() {
-		led_init();
+    led_init();
     gpio_init();
     ticks_init();
     linear_ccd_init();
@@ -562,7 +562,7 @@ int main() {
                     tft_put_pixel(k, 159-schmittCCD[k], GREEN);
                     tft_put_pixel(k, 159-medianCCD[k], WHITE);
                 }
-								int h;
+                int h;
                 for(h = 0; h < 159; h+=20) {
                     tft_prints(2, h, "%d", 159-h);
                 }
@@ -571,8 +571,5 @@ int main() {
         }
 
     }
-
-
-
 
 }
