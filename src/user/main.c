@@ -478,9 +478,10 @@ int main() {
         }
 
         tft_clear();
+				int avg = 0; //avg of left and right edge
+				int leftEdge = 0, rightEdge = 0;
+
         while(1) {
-            int leftEdge, rightEdge;
-            int avg = 0;
 
             if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
                 servo_pos += speed;
