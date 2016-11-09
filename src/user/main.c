@@ -328,76 +328,62 @@ int bitStringToInt(int a, int b){
 		return 0;
 	}
 }
-#define ENCODER_TIMER						TIM1
-#define ENCODER_TIMER_CLOCK_SOURCE			RCC_APB2Periph_TIM1						// in APB 1
-#define ENCODER_TIMER_GPIO_CLOCK_SOURCE		RCC_APB2Periph_GPIOE					// in APB 2
-#define ENCODER_TIMER_PORT1					GPIO_Pin_9
-#define ENCODER_TIMER_PORT2					GPIO_Pin_11
-#define ENCODER_TIMER_GPIOx					GPIOE
-#define ENCODER_MAX_CHANGE					20000
-
-void doEverything(){
-		GPIO_InitTypeDef GPIO_InitStructure;
-			GPIO_StructInit(&GPIO_InitStructure);
-
-			/* Enable Timer Clock Source */
-			RCC_APB2PeriphClockCmd(ENCODER_TIMER_CLOCK_SOURCE, ENABLE);
-			/* Enable GPIO, clock */
-			RCC_APB2PeriphClockCmd(ENCODER_TIMER_GPIO_CLOCK_SOURCE|RCC_APB2Periph_AFIO, ENABLE);
-				/* Set Timer Pin */
-				GPIO_InitStructure.GPIO_Pin = ENCODER_TIMER_PORT1 | ENCODER_TIMER_PORT2;
-				/* Set Pin Mode */
-			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-			/* Activate */
-				GPIO_Init(ENCODER_TIMER_GPIOx, &GPIO_InitStructure);	GPIO_PinRemapConfig(GPIO_FullRemap_TIM1 , ENABLE);
-	
-	
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	/* clear */
-	TIM_DeInit(ENCODER_TIMER);
-	/* Set Start */
-	TIM_TimeBaseStructure.TIM_Prescaler = 0x00;  // No prescaling
-	/* Set Max Count */
-	TIM_TimeBaseStructure.TIM_Period = 0xffff;
-	/* Set Clock Devision */
-	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
-	/* Set Count Mode ----- ascending ar descending */
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	/* Activate */
-	TIM_TimeBaseInit(ENCODER_TIMER, &TIM_TimeBaseStructure);
-
-	TIM_EncoderInterfaceConfig(ENCODER_TIMER, TIM_EncoderMode_TI12,
-	                         TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
-	/* Reset counter */
-	ENCODER_TIMER->CNT = 0;
-	TIM_Cmd(ENCODER_TIMER, ENABLE);
-	
+void RCC_Configuration(void)
+{
+    // clock for GPIO and AFIO (for ReMap)
+ 
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+ 
+    // clock for TIM4
+ 
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 }
-
-u32 getCount(){
-	return ENCODER_TIMER->CNT;
+ 
+/**************************************************************************************/
+ 
+void GPIO_Configuration(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+ 
+  // PC.06 TIM3_CH1, PC.07 TIM3_CH2
+	// PB6 TIM4_CH1, PB7 TIM4_CH2
+ 
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+     
+  //GPIO_PinRemapConfig( GPIO_Remap_TIM4, ENABLE );        // Map TIM3 to GPIOC
 }
-
-
-u32 getDistance(u32 prevCount){
-	u32 currCount = ENCODER_TIMER->CNT;
-	static u32 distance = 0;
-	if (prevCount - currCount > ENCODER_MAX_CHANGE){
-		distance +=  0xffff;
-	}
-	else if (prevCount - currCount < -ENCODER_MAX_CHANGE){
-		distance -=  0xffff;
-	}
-	distance += (currCount-prevCount);
-	prevCount = currCount;
-	return distance;
+ 
+/**************************************************************************************/
+ 
+void TIM4_Configuration(void)
+{
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+ 
+    TIM_TimeBaseStructure.TIM_Prescaler = 0;
+    TIM_TimeBaseStructure.TIM_Period = 65535; // Maximal
+    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+ 
+    TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+ 
+    // TIM_EncoderMode_TI1: Counter counts on TI1FP1 edge depending on TI2FP2 level.
+    TIM_EncoderInterfaceConfig(TIM4, TIM_EncoderMode_TI1, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
+     
+    TIM_Cmd(TIM4, ENABLE);
 }
-
 
 int main() {
 	
     init_all();
-
+		
+	RCC_Configuration();
+ 
+  GPIO_Configuration();
+ 
+  TIM4_Configuration();
+	
     int h;
 		int leftEdge, rightEdge;
 		int avg = 0;
@@ -425,7 +411,7 @@ int main() {
 		int curTime = 0;
 		
 		u32 loops = 0;
-		/* //shooter
+		 //shooter
 		while (1) {
 				//tft_fill_area(40, 0, 30, 30, BLACK);
 				//tft_prints(40, 0, "A: %d", read_gpio(GPIOA, GPIO_Pin_11));
@@ -433,8 +419,8 @@ int main() {
 				//tft_prints(40, 20, "%d", getDistance(curTime) encPos);
 			
 
-				uart_tx(COM3, "%d %d     sum: %d \n", read_gpio(GPIOA, GPIO_Pin_11), read_gpio(GPIOA, GPIO_Pin_12), sumA);
-				
+				//uart_tx(COM3, "%d %d     sum: %d \n", read_gpio(GPIOA, GPIO_Pin_11), read_gpio(GPIOA, GPIO_Pin_12), sumA);
+				uart_tx(COM3, "%d\n", TIM4->CNT);
 				curA = read_gpio(GPIOA, GPIO_Pin_11);
 				isA = curA;
 				if (isA == 1){
@@ -452,8 +438,6 @@ int main() {
 					wasA = 0;
 				}
 			}
-	*/
-
 			
 	
  /*
@@ -475,6 +459,7 @@ int main() {
 		
 		tft_clear();
 	*/
+	/*
     while(1) {
         //motor_control(0, 0, 50); //id, direction, magnitude
         if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
@@ -564,7 +549,7 @@ int main() {
             }
         }
         bluetooth_handler();
-			}
+			}*/
 }
 
 //Button listeners
