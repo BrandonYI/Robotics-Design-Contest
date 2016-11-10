@@ -29,6 +29,7 @@ int encoderArr[4][4] = {
 
 //motor 
 float left_motor_magnitude = 0;
+float right_motor_magnitude = 0;
 
 //////carrier robot (smartcar)
 //bluetooth
@@ -437,16 +438,22 @@ void TIM4_Configuration(void) {
 
 
 long old_left_enc_pos = 0;
-long left_enc_true_distance = 0;
+long old_right_enc_pos = 0;
+
 
 long l_enc_vel = 0; //left encoder angular velocity
-long target_enc_vel = 15; //target encoder velocity in ticks/ms
+long r_enc_vel = 0;
+
+long target_enc_vel = 20; //target encoder velocity in ticks/ms
 
 u32 lastEncoderReadTime = 0;
 u32 timePassed = 0;
 
 int left_enc_error = 0;
+int right_enc_error = 0;
+
 int old_left_enc_error = 0;
+int old_right_enc_error = 0;
 
 double get_ang_vel(double change, u32 timePassed){
 	return change/timePassed;	
@@ -464,6 +471,21 @@ int get_left_enc_pos_change(int old_enc_pos){
 	}	
 	
 	change += (cur_left_enc_pos - old_enc_pos);
+	return change;
+}
+
+//TIM3: right wheel
+int get_right_enc_pos_change(int old_enc_pos){
+	int change = 0;
+	int cur_right_enc_pos = TIM3->CNT; //use long?
+	
+	if (old_enc_pos - cur_right_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
+		change += 65535;
+	} else if (old_enc_pos - cur_right_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
+		change -= 65535;
+	}	
+	
+	change += (cur_right_enc_pos - old_enc_pos);
 	return change;
 }
 
@@ -492,29 +514,42 @@ int main() {
         init_encoder_left();
         init_encoder_right();
 			
+			
         while (1) {
 						timePassed = get_real_ticks() - lastEncoderReadTime;
 						lastEncoderReadTime = get_real_ticks();
 						
-						tft_prints(10, 70, "%d   %d", old_left_enc_pos, TIM4->CNT);
-						tft_prints(10, 60, "change:%d", get_left_enc_pos_change(old_left_enc_pos));
 					
 						l_enc_vel = get_ang_vel( get_left_enc_pos_change(old_left_enc_pos), timePassed);
-						tft_prints(10, 50, "cur_vel:%d  target:%d", l_enc_vel, target_enc_vel);	
 					
 						left_enc_error = target_enc_vel - l_enc_vel;
-						tft_prints(10, 40, "error: %d", left_enc_error);
 						
 						left_motor_magnitude += left_enc_error*0.5; //+ (left_enc_error - old_left_enc_error)/timePassed;
-						motor_control(MOTOR1, 0, clamp(left_motor_magnitude, 1, 200));
+						motor_control(MOTOR2, 0, (int)clamp(left_motor_magnitude, 1, 2000));
 						
 						old_left_enc_pos = TIM4->CNT;
 						//old_left_enc_error = left_enc_error;
+				
+					
+						r_enc_vel = get_ang_vel( get_right_enc_pos_change(old_left_enc_pos), timePassed);
+						right_enc_error = target_enc_vel - r_enc_vel;
 						
-            tft_clear();
+						right_motor_magnitude += right_enc_error*0.5;
+						motor_control(MOTOR3, 1 ,(int)clamp(right_motor_magnitude, 1, 2000));
+						
+						old_right_enc_pos = TIM3->CNT;
+						
+						tft_clear();
             tft_prints(10, 10, "left: %d", TIM4->CNT);
             tft_prints(10, 20, "right: %d", TIM3->CNT);
-					tft_prints(10, 30, "motor: %f", clamp(left_motor_magnitude, 1, 200));
+						tft_prints(10, 30, "Lmotor mag: %f", clamp(left_motor_magnitude, 1, 2000));
+						tft_prints(10, 40, "Rmotor mag: %f", clamp(right_motor_magnitude, 1, 2000));
+						tft_prints(10, 50, "Lerror: %d", left_enc_error);
+						tft_prints(10, 60, "Rerror: %d", right_enc_error);
+						tft_prints(10, 70, "L cur_vel:%d  target:%d", l_enc_vel, target_enc_vel);	
+						tft_prints(10, 80, "R cur_vel:%d  target:%d", r_enc_vel, target_enc_vel);
+
+
         }
 
     } else { // is smartcar code
@@ -539,6 +574,7 @@ int main() {
 				int leftEdge = 0, rightEdge = 0;
 
         while(1) {
+					
 
             if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
                 servo_pos += speed;
