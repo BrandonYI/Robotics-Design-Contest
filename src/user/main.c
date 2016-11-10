@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 
-const int IS_SHOOTER_ROBOT = 0; //to decide which while loop to use
+const int IS_SHOOTER_ROBOT = 1; //to decide which while loop to use
 
 ////prototypes
 
@@ -26,6 +26,9 @@ int encoderArr[4][4] = {
     {-1, 0, 0, 1},
     {0, 1, -1, 0}
 };
+
+//motor 
+float left_motor_magnitude = 0;
 
 //////carrier robot (smartcar)
 //bluetooth
@@ -63,7 +66,7 @@ u8 speed = 20;
 
 
 /*************************misc functions*************************/
-int clamp(int val, int min, int max) {
+float clamp(float val, int min, int max) {
     if (val < min)
         return min;
     if (val > max)
@@ -383,8 +386,8 @@ void RCC_Configuration(void) {
 void GPIO_Configuration(void) {
     GPIO_InitTypeDef GPIO_InitStructure;
 
-    // PC.06 TIM3_CH1, PC.07 TIM3_CH2 left tim3
-    // PB6 TIM4_CH1, PB7 TIM4_CH2 right tim4
+    // PC.06 TIM3_CH1, PC.07 TIM3_CH2 right tim3
+    // PB6 TIM4_CH1, PB7 TIM4_CH2 left tim4
 
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
@@ -431,6 +434,41 @@ void TIM4_Configuration(void) {
 
 /*****************************************************/
 
+
+
+long old_left_enc_pos = 0;
+long left_enc_true_distance = 0;
+
+long l_enc_vel = 0; //left encoder angular velocity
+long target_enc_vel = 15; //target encoder velocity in ticks/ms
+
+u32 lastEncoderReadTime = 0;
+u32 timePassed = 0;
+
+int left_enc_error = 0;
+int old_left_enc_error = 0;
+
+double get_ang_vel(double change, u32 timePassed){
+	return change/timePassed;	
+}
+
+//TIM4: left wheel
+int get_left_enc_pos_change(int old_enc_pos){
+	int change = 0;
+	int cur_left_enc_pos = TIM4->CNT; //use long?
+	
+	if (old_enc_pos - cur_left_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
+		change += 65535;
+	} else if (old_enc_pos - cur_left_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
+		change -= 65535;
+	}	
+	
+	change += (cur_left_enc_pos - old_enc_pos);
+	return change;
+}
+
+	
+
 int main() {
     led_init();
     gpio_init();
@@ -453,11 +491,30 @@ int main() {
 
         init_encoder_left();
         init_encoder_right();
-
+			
         while (1) {
+						timePassed = get_real_ticks() - lastEncoderReadTime;
+						lastEncoderReadTime = get_real_ticks();
+						
+						tft_prints(10, 70, "%d   %d", old_left_enc_pos, TIM4->CNT);
+						tft_prints(10, 60, "change:%d", get_left_enc_pos_change(old_left_enc_pos));
+					
+						l_enc_vel = get_ang_vel( get_left_enc_pos_change(old_left_enc_pos), timePassed);
+						tft_prints(10, 50, "cur_vel:%d  target:%d", l_enc_vel, target_enc_vel);	
+					
+						left_enc_error = target_enc_vel - l_enc_vel;
+						tft_prints(10, 40, "error: %d", left_enc_error);
+						
+						left_motor_magnitude += left_enc_error*0.5; //+ (left_enc_error - old_left_enc_error)/timePassed;
+						motor_control(MOTOR1, 0, clamp(left_motor_magnitude, 1, 200));
+						
+						old_left_enc_pos = TIM4->CNT;
+						//old_left_enc_error = left_enc_error;
+						
             tft_clear();
             tft_prints(10, 10, "left: %d", TIM4->CNT);
             tft_prints(10, 20, "right: %d", TIM3->CNT);
+					tft_prints(10, 30, "motor: %f", clamp(left_motor_magnitude, 1, 200));
         }
 
     } else { // is smartcar code
