@@ -17,10 +17,10 @@
 #include "linear_ccd.h"
 #include "gpio.h"
 #include "pneumatic.h"
-
+#include "encoder.h"
 int main(void);
 
 #include <stdio.h>
 #include <string.h>
-
+#include <stdlib.h>
 #endif	/* __MAIN_H */

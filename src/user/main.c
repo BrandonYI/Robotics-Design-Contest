@@ -1,7 +1,4 @@
 #include "main.h"
-#include <stdlib.h>
-#include <ctype.h>
-#include <string.h>
 
 const int IS_SHOOTER_ROBOT = 1; //to decide which while loop to use
 
@@ -34,7 +31,7 @@ float right_motor_magnitude = 0;
 //////carrier robot (smartcar)
 //bluetooth
 const int MAXBUFFER = 100; //max buffer size for smartcar bluetooth incoming message
-char buffer[MAXBUFFER] = {0}; //stores current input chras
+char buffer[MAXBUFFER] = {0}; //stores current input chars
 char manual_buffer[MAXBUFFER] = {0};
 char curKey = '\0';
 
@@ -65,7 +62,6 @@ const int CENTER = 1010;
 u16 servo_pos = 750;
 u8 speed = 20;
 
-
 /*************************misc functions*************************/
 float clamp(float val, int min, int max) {
     if (val < min)
@@ -91,7 +87,7 @@ void drawLine(int val, int isHorizontal, u16 color) {
     }
 }
 
-int bitStringToInt(int a, int b) {
+int bitStringToInt(int a, int b) {  //What is this for? This is super inefficient
     if (a == 1 && b == 1) {
         return 3;
     } else if (a == 1 && b == 0) {
@@ -102,6 +98,7 @@ int bitStringToInt(int a, int b) {
         return 0;
     }
 }
+
 /*************************carrier robot (smartcar)*************************/
 void buffer_clear() {
     if (bool_need_clear_buffer) {
@@ -132,8 +129,6 @@ void use_servo(long value, long id) {
     }
 }
 
-
-
 void uart_listener(const u8 byte) {
     curTime = get_real_ticks();
     timeSinceLastCommand = 0;
@@ -148,10 +143,6 @@ void uart_listener(const u8 byte) {
         bool_need_clear_buffer = 1;
         buffer_index = 0;
     }
-    /*if (curKey != byte){
-        uart_tx(COM3, "received: %c\n", byte);
-    }
-    curKey = byte;*/
 }
 
 float getMedian(const int a[]) {
@@ -269,29 +260,8 @@ void bluetooth_handler() {
         }
         bool_need_clear_buffer = 1;
     }
-    /*//TODO: Consider adding a manual command so that letters do not overlap? Test if current program will work on STM32
-    int i;
-    for (i = 0; buffer[i] != '\0'; ++i) //to account for the rare simulateneous inputs
-    {
-    	if (buffer[i] == 'w'){ //considering switch statements for readibility
-    		uart_tx(COM3, "w "); //up arrow 0x0E
-    	}
-    	else if (buffer[i] == 'a'){//How to account for the a in 'pneumatic'
-    		uart_tx(COM3, "a "); //left arrow 0x0B
-    	}
-    	else if (buffer[i] == 's'){ //How to account for the s when typing in the command 'servo'
-    		uart_tx(COM3, "s "); //down arrow 0x0C
-    	}
-    	else if (buffer[i] == 'd'){
-    		uart_tx(COM3, "d "); //right arrow 0x07
-    	}
-    }
-    if(buffer[i] == '\0' ){ //if the first element of buffer is \0 or the we reached the end of the wasd loop
-    	bool_need_clear_buffer = 1; //TODO:Set a time interval where the command is not nullified
-    }*/
     buffer_clear();
 }
-
 
 /*************************shooter robot *************************/
 void use_motor(long value, long id) {
@@ -315,131 +285,9 @@ void use_led(long value, long id) {
         uart_tx(COM3, "TURNED LED %ld OFF\n", id);
     }
 }
-
-void init_encoder_left() {
-    //tim4
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
-    GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-
-    TIM_TimeBaseStructure.TIM_Prescaler = 0;
-    TIM_TimeBaseStructure.TIM_Period = 65535; // Maximal
-    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
-    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-
-    TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
-
-    // TIM_EncoderMode_TI1: Counter counts on TI1FP1 edge depending on TI2FP2 level.
-    TIM_EncoderInterfaceConfig(TIM4, TIM_EncoderMode_TI1, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
-
-    TIM_Cmd(TIM4, ENABLE);
-
-}
-void init_encoder_right() {
-    //tim3
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
-    GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-
-    GPIO_PinRemapConfig( GPIO_FullRemap_TIM3, ENABLE );
-
-    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-
-    TIM_TimeBaseStructure.TIM_Prescaler = 0;
-    TIM_TimeBaseStructure.TIM_Period = 65535; // Maximal
-    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
-    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-
-    TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
-
-    // TIM_EncoderMode_TI1: Counter counts on TI1FP1 edge depending on TI2FP2 level.
-    TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI1, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
-
-    TIM_Cmd(TIM3, ENABLE);
-
-}
-
-
-
-
-/*****************************unused************************/
-void RCC_Configuration(void) {
-    // clock for GPIO and AFIO (for ReMap)
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
-
-
-    // clock for TIM3, 4
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
-}
-
-
-void GPIO_Configuration(void) {
-    GPIO_InitTypeDef GPIO_InitStructure;
-
-    // PC.06 TIM3_CH1, PC.07 TIM3_CH2 right tim3
-    // PB6 TIM4_CH1, PB7 TIM4_CH2 left tim4
-
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-
-    GPIO_PinRemapConfig( GPIO_FullRemap_TIM3, ENABLE );        // Map TIM3 to GPIOC
-}
-
-
-
-void TIM3_Configuration(void) {
-    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-
-    TIM_TimeBaseStructure.TIM_Prescaler = 0;
-    TIM_TimeBaseStructure.TIM_Period = 65535; // Maximal
-    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
-    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-
-    TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
-
-    // TIM_EncoderMode_TI1: Counter counts on TI1FP1 edge depending on TI2FP2 level.
-    TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI1, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
-
-    TIM_Cmd(TIM3, ENABLE);
-}
-
-void TIM4_Configuration(void) {
-    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-
-    TIM_TimeBaseStructure.TIM_Prescaler = 0;
-    TIM_TimeBaseStructure.TIM_Period = 65535; // Maximal
-    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
-    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-
-    TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
-
-    // TIM_EncoderMode_TI1: Counter counts on TI1FP1 edge depending on TI2FP2 level.
-    TIM_EncoderInterfaceConfig(TIM4, TIM_EncoderMode_TI1, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
-
-    TIM_Cmd(TIM4, ENABLE);
-}
-
-/*****************************************************/
-
-
-
+//PID
 long old_left_enc_pos = 0;
 long old_right_enc_pos = 0;
-
 
 long l_enc_vel = 0; //left encoder angular velocity
 long r_enc_vel = 0;
@@ -451,25 +299,22 @@ u32 timePassed = 0;
 
 int left_enc_error = 0;
 int right_enc_error = 0;
-
 int old_left_enc_error = 0;
 int old_right_enc_error = 0;
+
 
 double get_ang_vel(double change, u32 timePassed){
 	return change/timePassed;	
 }
-
 //TIM4: left wheel
 int get_left_enc_pos_change(int old_enc_pos){
 	int change = 0;
 	int cur_left_enc_pos = TIM4->CNT; //use long?
-	
 	if (old_enc_pos - cur_left_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
 		change += 65535;
 	} else if (old_enc_pos - cur_left_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
 		change -= 65535;
 	}	
-	
 	change += (cur_left_enc_pos - old_enc_pos);
 	return change;
 }
@@ -478,18 +323,14 @@ int get_left_enc_pos_change(int old_enc_pos){
 int get_right_enc_pos_change(int old_enc_pos){
 	int change = 0;
 	int cur_right_enc_pos = TIM3->CNT; //use long?
-	
 	if (old_enc_pos - cur_right_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
 		change += 65535;
 	} else if (old_enc_pos - cur_right_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
 		change -= 65535;
 	}	
-	
 	change += (cur_right_enc_pos - old_enc_pos);
 	return change;
 }
-
-	
 
 int main() {
     led_init();
@@ -499,57 +340,48 @@ int main() {
     adc_init();
     button_init();
     set_keydown_listener(BUTTON2, &change_speed);
-		if (IS_SHOOTER_ROBOT == 0){ //cant use servo if you're using encoders because both use timer 3
-			servo_init(143,10000,0);
-		}
+	if (IS_SHOOTER_ROBOT == 0){ //cant use servo if you're using encoders because both use timer 3
+		servo_init(143,10000,0);
+	}
     tft_init(2, BLACK, WHITE);
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
     uart_tx(COM3, "initialize\n");
     motor_init(143, 10000, 0);
-
-
     if (IS_SHOOTER_ROBOT == 1) {
-
         init_encoder_left();
         init_encoder_right();
-			
-			
         while (1) {
-						timePassed = get_real_ticks() - lastEncoderReadTime;
-						lastEncoderReadTime = get_real_ticks();
-						
-					
-						l_enc_vel = get_ang_vel( get_left_enc_pos_change(old_left_enc_pos), timePassed);
-					
-						left_enc_error = target_enc_vel - l_enc_vel;
-						
-						left_motor_magnitude += left_enc_error*0.5; //+ (left_enc_error - old_left_enc_error)/timePassed;
-						motor_control(MOTOR2, 0, (int)clamp(left_motor_magnitude, 1, 2000));
-						
-						old_left_enc_pos = TIM4->CNT;
-						//old_left_enc_error = left_enc_error;
-				
-					
-						r_enc_vel = get_ang_vel( get_right_enc_pos_change(old_left_enc_pos), timePassed);
-						right_enc_error = target_enc_vel - r_enc_vel;
-						
-						right_motor_magnitude += right_enc_error*0.5;
-						motor_control(MOTOR3, 1 ,(int)clamp(right_motor_magnitude, 1, 2000));
-						
-						old_right_enc_pos = TIM3->CNT;
-						
-						tft_clear();
+			timePassed = get_real_ticks() - lastEncoderReadTime;
+			lastEncoderReadTime = get_real_ticks();
+			
+			l_enc_vel = get_ang_vel( get_left_enc_pos_change(old_left_enc_pos), timePassed);
+		
+			left_enc_error = target_enc_vel - l_enc_vel;
+			
+			left_motor_magnitude += left_enc_error*0.5; //+ (left_enc_error - old_left_enc_error)/timePassed;
+			motor_control(MOTOR2, 0, (int)clamp(left_motor_magnitude, 1, 2000));
+			
+			old_left_enc_pos = TIM4->CNT;
+			//old_left_enc_error = left_enc_error;
+	
+			r_enc_vel = get_ang_vel( get_right_enc_pos_change(old_left_enc_pos), timePassed);
+			right_enc_error = target_enc_vel - r_enc_vel;
+			
+			right_motor_magnitude += right_enc_error*0.5;
+			motor_control(MOTOR3, 1 ,(int)clamp(right_motor_magnitude, 1, 2000));
+			
+			old_right_enc_pos = TIM3->CNT;
+			
+			tft_clear();
             tft_prints(10, 10, "left: %d", TIM4->CNT);
             tft_prints(10, 20, "right: %d", TIM3->CNT);
-						tft_prints(10, 30, "Lmotor mag: %f", clamp(left_motor_magnitude, 1, 2000));
-						tft_prints(10, 40, "Rmotor mag: %f", clamp(right_motor_magnitude, 1, 2000));
-						tft_prints(10, 50, "Lerror: %d", left_enc_error);
-						tft_prints(10, 60, "Rerror: %d", right_enc_error);
-						tft_prints(10, 70, "L cur_vel:%d  target:%d", l_enc_vel, target_enc_vel);	
-						tft_prints(10, 80, "R cur_vel:%d  target:%d", r_enc_vel, target_enc_vel);
-
-
+			tft_prints(10, 30, "Lmotor mag: %f", clamp(left_motor_magnitude, 1, 2000));
+			tft_prints(10, 40, "Rmotor mag: %f", clamp(right_motor_magnitude, 1, 2000));
+			tft_prints(10, 50, "Lerror: %d", left_enc_error);
+			tft_prints(10, 60, "Rerror: %d", right_enc_error);
+			tft_prints(10, 70, "L cur_vel:%d  target:%d", l_enc_vel, target_enc_vel);	
+			tft_prints(10, 80, "R cur_vel:%d  target:%d", r_enc_vel, target_enc_vel);
         }
 
     } else { // is smartcar code
@@ -568,14 +400,10 @@ int main() {
             //motor_control(1, 0, 50);
             //motor_control(2, 0, 50);
         }
-
         tft_clear();
-				int avg = 0; //avg of left and right edge
-				int leftEdge = 0, rightEdge = 0;
-
+		int avg = 0; //avg of left and right edge
+		int leftEdge = 0, rightEdge = 0;
         while(1) {
-					
-
             if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
                 servo_pos += speed;
                 tft_fill_area(46, 72, 25, 12, BLACK);
@@ -598,7 +426,6 @@ int main() {
                     tft_put_pixel(k, 159-medianCCD[k], BLACK);
                     tft_put_pixel(k, 159-schmittCCD[k], BLACK);
                 }
-
                 if (leftEdge != -1) {
                     drawLine(leftEdge, 0, BLACK);
                 }
