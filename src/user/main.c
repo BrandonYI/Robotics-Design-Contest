@@ -26,6 +26,37 @@ void use_led(long, long);
 double left_motor_magnitude = 0;
 double right_motor_magnitude = 0;
 
+//PID Control
+
+long target_enc_vel = 40; //target encoder velocity in ticks/ms
+u32 lastEncoderReadTime = 0;
+u32 timePassed = 0;
+
+long old_enc_leftX = 0;
+long old_enc_rightX = 0;
+long enc_leftV = 0; //left encoder angular velocity
+long enc_rightV = 0;
+int old_enc_Lerror = 0;
+int old_enc_Rerror = 0;
+
+//PID
+double left_proportion = 0;
+double left_derivative = 0;
+double left_integral = 0;
+double right_proportion = 0;
+double right_derivative = 0;
+double right_integral = 0;
+
+//Constants for Tuning PID
+const double left_kp = 0;
+const double left_ki = 0;
+const double left_kd = 0;
+
+const double right_kp = 0;
+const double right_ki = 0;
+const double right_kd = 0;
+
+
 //////carrier robot (smartcar)
 //bluetooth
 const int MAXBUFFER = 100; //max buffer size for smartcar bluetooth incoming message
@@ -133,7 +164,7 @@ void uart_listener(const u8 byte) {
     buffer[buffer_index++] = byte;
     buffer[buffer_index] = '\0';
     uart_tx(COM3, "%c", byte);
-    if (byte == '~') {
+    if (byte == '.') {
         bool_command_finish = 1;
         buffer_index = 0;
     }
@@ -256,13 +287,19 @@ void bluetooth_handler() {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
         } else if (strstr(buffer, "p")){
-						
+
 				}
         bool_need_clear_buffer = 1;
     }
     buffer_clear();
 }
+const double left_kp = 0;
+const double left_ki = 0;
+const double left_kd = 0;
 
+const double right_kp = 0;
+const double right_ki = 0;
+const double right_kd = 0;
 /*************************shooter robot *************************/
 void use_motor(long value, long id) {
     if(value<100 && value>0) {
@@ -285,35 +322,7 @@ void use_led(long value, long id) {
         uart_tx(COM3, "TURNED LED %ld OFF\n", id);
     }
 }
-//PID Control
 
-long target_enc_vel = 40; //target encoder velocity in ticks/ms
-u32 lastEncoderReadTime = 0;
-u32 timePassed = 0;
-
-long old_enc_leftX = 0;
-long old_enc_rightX = 0;
-long enc_leftV = 0; //left encoder angular velocity
-long enc_rightV = 0;
-int old_enc_Lerror = 0;
-int old_enc_Rerror = 0;
-
-//PID
-double left_proportion = 0;
-double left_derivative = 0;
-double left_integral = 0;
-double right_proportion = 0;
-double right_derivative = 0;
-double right_integral = 0;
-
-//Constants for Tuning PID
-const double left_kp = 0;
-const double left_ki = 0;
-const double left_kd = 0;
-
-const double right_kp = 0;
-const double right_ki = 0;
-const double right_kd = 0;
 
 double get_ang_vel(double change, u32 timePassed){
 	return -change/timePassed;	//negative because we fucked up the wiring
