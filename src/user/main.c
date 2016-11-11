@@ -48,13 +48,13 @@ double right_derivative = 0;
 double right_integral = 0;
 
 //Constants for Tuning PID
-const double left_kp = 0;
-const double left_ki = 0;
-const double left_kd = 0;
+double left_kp = 0;
+double left_ki = 0;
+double left_kd = 0;
 
-const double right_kp = 0;
-const double right_ki = 0;
-const double right_kd = 0;
+double right_kp = 0;
+double right_ki = 0;
+double right_kd = 0;
 
 
 //////carrier robot (smartcar)
@@ -133,7 +133,7 @@ void buffer_clear() {
     if (bool_need_clear_buffer) {
         bool_need_clear_buffer = 0;
         buffer_index = 0;
-        uart_tx(COM3, "\nBuffer: ");
+        uart_tx(COM3, "\n>>> ");
     }
 }
 
@@ -264,7 +264,12 @@ void bluetooth_handler() {
         uart_tx(COM3, "\nCOMPLETE COMMAND: %s\n", buffer);
 
         char* cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
-        char* valptr = cmdptr + 1;
+        if (cmdptr == NULL){
+					uart_tx(COM3, "invalid command\n");
+					return;
+				}
+			
+				char* valptr = cmdptr + 1;
         char* idptr = cmdptr - 1;
         int val = strtol(valptr, NULL,10); //Obtain Value
         *cmdptr = '\0';
@@ -286,20 +291,39 @@ void bluetooth_handler() {
         } else if(strstr(buffer,"pneumatic")) {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
-        } else if (strstr(buffer, "p")){
-
+				} else if (strstr(buffer, "p")){ //have to type pp:1.
+						if (id == 0){ //left
+							uart_tx(COM3, "set left p val to %d%% \n", val);
+							left_kp = val;
+						} else if (id == 1){
+							uart_tx(COM3, "set right p val to %d%% \n", val);
+							right_kp = val;
+						}		
+				} else if (strstr(buffer,"i")){
+						if (id == 0){ //left
+							uart_tx(COM3, "set left i val to %d%% \n", val);
+							left_ki = val;
+						} else if (id == 1){
+							uart_tx(COM3, "set right i val by %d%% \n", val);
+							right_ki = val;
+						}						
+				} else if (strstr(buffer, "d")){
+						if (id == 0){ //left
+							uart_tx(COM3, "set left d val to %d%% \n", val);
+							left_kd = val;
+						} else if (id == 1){
+							uart_tx(COM3, "set right d val to %d%% \n", val);
+							right_kd = val;
+						}		
+				} else if (strstr(buffer, "targe")){
+						uart_tx(COM3, "set target to %d", val);
+						target_enc_vel = val;
 				}
         bool_need_clear_buffer = 1;
     }
     buffer_clear();
 }
-const double left_kp = 0;
-const double left_ki = 0;
-const double left_kd = 0;
 
-const double right_kp = 0;
-const double right_ki = 0;
-const double right_kd = 0;
 /*************************shooter robot *************************/
 void use_motor(long value, long id) {
     if(value<100 && value>0) {
@@ -367,7 +391,7 @@ void PID_motor_update(){
 	left_integral += left_proportion;  //Calculate Integral
 
 	left_motor_magnitude += left_proportion*left_kp + left_derivative*left_kd + left_integral*left_ki; //Speed = P + I + D
-	left_motor_magnitude = clamp(left_motor_magnitude, 1, 3000); //Clamping
+	left_motor_magnitude = clamp(left_motor_magnitude, 1, 5000); //Clamping
 	motor_control(MOTOR1, 0, (int)left_motor_magnitude); //Use Speed
 	old_enc_leftX = TIM3->CNT;  //Update Old Position
 	old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
@@ -381,7 +405,7 @@ void PID_motor_update(){
 	right_integral += right_proportion;
 
 	right_motor_magnitude += right_proportion*right_kp + right_derivative*right_kd + right_integral*right_ki;
-	right_motor_magnitude = clamp(right_motor_magnitude, 1, 3000);
+	right_motor_magnitude = clamp(right_motor_magnitude, 1, 5000);
 	motor_control(MOTOR3, 0, (int)right_motor_magnitude);
 	old_enc_rightX = TIM4->CNT;
 	old_enc_Rerror = enc_Rerror;
@@ -407,7 +431,7 @@ int main() {
         init_encoder_right();
         while (1) {
         	PID_motor_update(); //PID Motor Update
-        	//bluetooth_handler();
+        	bluetooth_handler();
 					tft_clear();
 					tft_prints(10, 10, "left: %d", TIM4->CNT);
 					tft_prints(10, 20, "right: %d", TIM3->CNT);
@@ -417,6 +441,9 @@ int main() {
 					tft_prints(10, 60, "Rerror: %d", old_enc_Rerror);
 					tft_prints(10, 70, "L cur_vel:%d  target:%d", enc_leftV, target_enc_vel);	
 					tft_prints(10, 80, "R cur_vel:%d  target:%d", enc_rightV, target_enc_vel);
+					tft_prints(10, 90, "L_p:%.2f%%  R_p:%.2f%%", left_kp, right_kp);
+					tft_prints(10, 100,"L_i:%.2f%%   R_i:%.2f%%", left_ki, right_ki);
+					tft_prints(10, 110,"L_d:%.2f%%  R_d:%.2f%%", left_kd, right_kd);
 				}
 
     } else { // is smartcar code
