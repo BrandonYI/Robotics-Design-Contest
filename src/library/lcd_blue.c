@@ -269,7 +269,7 @@ void tft_clear() {
 		}
 }
 
-void tft_prints(u8 x, u8 y, const char * pstr, ...) {
+	void tft_prints(u8 x, u8 y, const char * pstr, ...) {
 	u8 buf[256];
 	u8* fp = NULL;
 	

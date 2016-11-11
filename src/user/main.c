@@ -23,8 +23,8 @@ void use_led(long, long);
     {0, 1, -1, 0}
 };*/
 //motor 
-float left_motor_magnitude = 0;
-float right_motor_magnitude = 0;
+double left_motor_magnitude = 0;
+double right_motor_magnitude = 0;
 
 //////carrier robot (smartcar)
 //bluetooth
@@ -285,7 +285,7 @@ void use_led(long value, long id) {
 }
 //PID Control
 
-long target_enc_vel = 20; //target encoder velocity in ticks/ms
+long target_enc_vel = 40; //target encoder velocity in ticks/ms
 u32 lastEncoderReadTime = 0;
 u32 timePassed = 0;
 
@@ -305,21 +305,21 @@ double right_derivative = 0;
 double right_integral = 0;
 
 //Constants for Tuning PID
-const double left_kp = 0.5;
-const double left_ki = 0;
-const double left_kd = 0;
+const double left_kp = 1;
+const double left_ki = 1;
+const double left_kd = 5;
 
-const double right_kp = 0.5;
-const double right_ki = 0;
-const double right_kd = 0;
+const double right_kp = 1;
+const double right_ki = 1;
+const double right_kd = 5;
 
 double get_ang_vel(double change, u32 timePassed){
-	return change/timePassed;	
+	return -change/timePassed;	//negative because we fucked up the wiring
 }
-//TIM4: left wheel
+//TIM3: left wheel
 int get_left_enc_pos_change(int old_enc_pos){
 	int change = 0;
-	int cur_left_enc_pos = TIM4->CNT; //use long?
+	int cur_left_enc_pos = TIM3->CNT; //use long?
 	if (old_enc_pos - cur_left_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
 		change += 65535;
 	} else if (old_enc_pos - cur_left_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
@@ -328,10 +328,10 @@ int get_left_enc_pos_change(int old_enc_pos){
 	change += (cur_left_enc_pos - old_enc_pos);
 	return change;
 }
-//TIM3: right wheel
+//TIM4: right wheel
 int get_right_enc_pos_change(int old_enc_pos){
 	int change = 0;
-	int cur_right_enc_pos = TIM3->CNT; //use long?
+	int cur_right_enc_pos = TIM4->CNT; //use long?
 	if (old_enc_pos - cur_right_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
 		change += 65535;
 	} else if (old_enc_pos - cur_right_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
@@ -346,7 +346,7 @@ void PID_motor_update(){
 
 	int enc_Lerror = 0; //Error between target velocity and actual velocity
 	int enc_Rerror = 0;
- 
+	
 	/******************************left**************************************/
 	enc_leftV = get_ang_vel( get_left_enc_pos_change(old_enc_leftX), timePassed); //Calculate the left velocity (pos - oldpos / time)
 	enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
@@ -356,13 +356,13 @@ void PID_motor_update(){
 	left_integral += left_proportion;  //Calculate Integral
 
 	left_motor_magnitude += left_proportion*left_kp + left_derivative*left_kd + left_integral*left_ki; //Speed = P + I + D
-	left_motor_magnitude = clamp(left_motor_magnitude, 1, 2000); //Clamping
-	motor_control(MOTOR2, 0, (int)left_motor_magnitude); //Use Speed
-	old_enc_leftX = TIM4->CNT;  //Update Old Position
+	left_motor_magnitude = clamp(left_motor_magnitude, 1, 3000); //Clamping
+	motor_control(MOTOR1, 0, (int)left_motor_magnitude); //Use Speed
+	old_enc_leftX = TIM3->CNT;  //Update Old Position
 	old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
 
 	/*****************************Right**************************************/
-	enc_rightV = get_ang_vel( get_right_enc_pos_change(old_enc_leftX), timePassed);
+	enc_rightV = get_ang_vel( get_right_enc_pos_change(old_enc_rightX), timePassed);
 	enc_Rerror = target_enc_vel - enc_rightV;
 
 	right_proportion = enc_Rerror;
@@ -370,10 +370,10 @@ void PID_motor_update(){
 	right_integral += right_proportion;
 
 	right_motor_magnitude += right_proportion*right_kp + right_derivative*right_kd + right_integral*right_ki;
-	right_motor_magnitude = clamp(right_motor_magnitude, 1, 2000);
-	motor_control(MOTOR3, 1 , (int)right_motor_magnitude);
-	old_enc_rightX = TIM3->CNT;
-	old_enc_Lerror = enc_Lerror;
+	right_motor_magnitude = clamp(right_motor_magnitude, 1, 3000);
+	motor_control(MOTOR3, 0, (int)right_motor_magnitude);
+	old_enc_rightX = TIM4->CNT;
+	old_enc_Rerror = enc_Rerror;
 }
 int main() {
     led_init();
@@ -396,17 +396,17 @@ int main() {
         init_encoder_right();
         while (1) {
         	PID_motor_update(); //PID Motor Update
-        	bluetooth_handler();
-			tft_clear();
-            tft_prints(10, 10, "left: %d", TIM4->CNT);
-            tft_prints(10, 20, "right: %d", TIM3->CNT);
-			tft_prints(10, 30, "Lmotor mag: %f", left_motor_magnitude);
-			tft_prints(10, 40, "Rmotor mag: %f", right_motor_magnitude);
-			tft_prints(10, 50, "Lerror: %d", old_enc_Lerror);
-			tft_prints(10, 60, "Rerror: %d", old_enc_Rerror);
-			tft_prints(10, 70, "L cur_vel:%d  target:%d", enc_leftV, target_enc_vel);	
-			tft_prints(10, 80, "R cur_vel:%d  target:%d", enc_rightV, target_enc_vel);
-        }
+        	//bluetooth_handler();
+					tft_clear();
+					tft_prints(10, 10, "left: %d", TIM4->CNT);
+					tft_prints(10, 20, "right: %d", TIM3->CNT);
+					tft_prints(10, 30, "Lmotor mag: %f", left_motor_magnitude);
+					tft_prints(10, 40, "Rmotor mag: %f", right_motor_magnitude);
+					tft_prints(10, 50, "Lerror: %d", old_enc_Lerror);
+					tft_prints(10, 60, "Rerror: %d", old_enc_Rerror);
+					tft_prints(10, 70, "L cur_vel:%d  target:%d", enc_leftV, target_enc_vel);	
+					tft_prints(10, 80, "R cur_vel:%d  target:%d", enc_rightV, target_enc_vel);
+				}
 
     } else { // is smartcar code
         while(1) {
