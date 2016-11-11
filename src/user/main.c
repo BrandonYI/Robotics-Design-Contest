@@ -133,7 +133,7 @@ void uart_listener(const u8 byte) {
     buffer[buffer_index++] = byte;
     buffer[buffer_index] = '\0';
     uart_tx(COM3, "%c", byte);
-    if (byte == '.') {
+    if (byte == '~') {
         bool_command_finish = 1;
         buffer_index = 0;
     }
@@ -255,7 +255,9 @@ void bluetooth_handler() {
         } else if(strstr(buffer,"pneumatic")) {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
-        }
+        } else if (strstr(buffer, "p")){
+						
+				}
         bool_need_clear_buffer = 1;
     }
     buffer_clear();
@@ -305,13 +307,13 @@ double right_derivative = 0;
 double right_integral = 0;
 
 //Constants for Tuning PID
-const double left_kp = 1;
-const double left_ki = 1;
-const double left_kd = 5;
+const double left_kp = 0;
+const double left_ki = 0;
+const double left_kd = 0;
 
-const double right_kp = 1;
-const double right_ki = 1;
-const double right_kd = 5;
+const double right_kp = 0;
+const double right_ki = 0;
+const double right_kd = 0;
 
 double get_ang_vel(double change, u32 timePassed){
 	return -change/timePassed;	//negative because we fucked up the wiring
