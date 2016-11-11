@@ -266,6 +266,8 @@ void bluetooth_handler() {
         char* cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
         if (cmdptr == NULL){
 					uart_tx(COM3, "invalid command\n");
+					uart_tx(COM3, ">>> ");					
+					buffer_clear();
 					return;
 				}
 			
@@ -293,27 +295,27 @@ void bluetooth_handler() {
             uart_tx(COM3, "pneumatic %ld is on \n", id);
 				} else if (strstr(buffer, "p")){ //have to type pp:1.
 						if (id == 0){ //left
-							uart_tx(COM3, "set left p val to %d%% \n", val);
-							left_kp = val;
+							uart_tx(COM3, "set left p val to %f \n", val/100.0);
+							left_kp = val/100.0;
 						} else if (id == 1){
-							uart_tx(COM3, "set right p val to %d%% \n", val);
-							right_kp = val;
+							uart_tx(COM3, "set right p val to %f \n", val/100.0);
+							right_kp = val/100.0;
 						}		
 				} else if (strstr(buffer,"i")){
 						if (id == 0){ //left
-							uart_tx(COM3, "set left i val to %d%% \n", val);
-							left_ki = val;
+							uart_tx(COM3, "set left i val to %f \n", val/100.0);
+							left_ki = val/100.0;
 						} else if (id == 1){
-							uart_tx(COM3, "set right i val by %d%% \n", val);
-							right_ki = val;
+							uart_tx(COM3, "set right i val by %f \n", val/100.0);
+							right_ki = val/100.0;
 						}						
 				} else if (strstr(buffer, "d")){
 						if (id == 0){ //left
-							uart_tx(COM3, "set left d val to %d%% \n", val);
-							left_kd = val;
+							uart_tx(COM3, "set left d val to %f \n", val/100.0);
+							left_kd = val/100.0;
 						} else if (id == 1){
-							uart_tx(COM3, "set right d val to %d%% \n", val);
-							right_kd = val;
+							uart_tx(COM3, "set right d val to %f \n", val/100.0);
+							right_kd = val/100.0;
 						}		
 				} else if (strstr(buffer, "targe")){
 						uart_tx(COM3, "set target to %d", val);
@@ -425,6 +427,7 @@ int main() {
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
     uart_tx(COM3, "initialize\n");
+		uart_tx(COM3, ">>> ");
     motor_init(143, 10000, 0);
     if (IS_SHOOTER_ROBOT == 1) { 
         init_encoder_left();
@@ -441,9 +444,9 @@ int main() {
 					tft_prints(10, 60, "Rerror: %d", old_enc_Rerror);
 					tft_prints(10, 70, "L cur_vel:%d  target:%d", enc_leftV, target_enc_vel);	
 					tft_prints(10, 80, "R cur_vel:%d  target:%d", enc_rightV, target_enc_vel);
-					tft_prints(10, 90, "L_p:%.2f%%  R_p:%.2f%%", left_kp, right_kp);
-					tft_prints(10, 100,"L_i:%.2f%%   R_i:%.2f%%", left_ki, right_ki);
-					tft_prints(10, 110,"L_d:%.2f%%  R_d:%.2f%%", left_kd, right_kd);
+					tft_prints(10, 90, "L_p:%.2f  R_p:%.2f", left_kp, right_kp);
+					tft_prints(10, 100,"L_i:%.2f   R_i:%.2f", left_ki, right_ki);
+					tft_prints(10, 110,"L_d:%.2f  R_d:%.2f", left_kd, right_kd);
 				}
 
     } else { // is smartcar code
