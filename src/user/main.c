@@ -5,7 +5,9 @@ const int IS_SHOOTER_ROBOT = 1; //to decide which while loop to use
 ////prototypes
 
 void use_motor(long, long);
+
 void use_pneumatic(long, long);
+
 void use_led(long, long);
 
 //////shooter robot variables
@@ -101,7 +103,7 @@ double clamp(double val, int min, int max) {
 }
 
 int abs(int a) {
-    return a<0? -a: a;
+    return a < 0 ? -a : a;
 }
 
 void drawLine(int val, int isHorizontal, u16 color) {
@@ -139,17 +141,17 @@ void change_speed(void) {
     count++;
     speed = 20; //case 0
     switch (count % 3) {
-    case 2: //speed = 60
-        speed += 20;
-    case 1: //speed = 40
-        speed += 20;
+        case 2: //speed = 60
+            speed += 20;
+        case 1: //speed = 40
+            speed += 20;
     }
     tft_fill_area(72, 72, 12, 12, speed_indic[count % 3]);
 }
 
 void use_servo(long value, long id) {
-    if(value<LEFTMOST&&value>RIGHTMOST) {
-        servo_control((SERVO_ID)id, value);
+    if (value < LEFTMOST && value > RIGHTMOST) {
+        servo_control((SERVO_ID) id, value);
     } else {
         uart_tx(COM3, "servo value is out of range\n");
     }
@@ -165,7 +167,7 @@ void uart_listener(const u8 byte) {
         bool_command_finish = 1;
         buffer_index = 0;
     }
-    if(byte == 'x') {	//If you make a typo, press x to reset buffer
+    if (byte == 'x') {    //If you make a typo, press x to reset buffer
         buffer_clear();
         buffer_index = 0;
     }
@@ -180,25 +182,26 @@ float getMedian(const int a[]) {
     for (i = 2; i < WINDOWSIZE; i++) { //selection sort
         key = arr[i];
         j = i - 1;
-        while (j>0 && arr[j] > key) {
-            arr[j+1] = arr[j];
+        while (j > 0 && arr[j] > key) {
+            arr[j + 1] = arr[j];
             --j;
         }
-        arr[j+1] = key;
+        arr[j + 1] = key;
     }
-    return (WINDOWSIZE%2==1? arr[WINDOWSIZE/2] : (arr[WINDOWSIZE/2-1]+arr[WINDOWSIZE/2])/2);
+    return (WINDOWSIZE % 2 == 1 ? arr[WINDOWSIZE / 2] : (arr[WINDOWSIZE / 2 - 1] + arr[WINDOWSIZE / 2]) / 2);
 }
+
 void runSchmitt() {
     int k;
     for (k = 0; k < 128; k++) {
-        schmittCCD[k] = (medianCCD[k] < CCD_THRESH)? 1: 158;
+        schmittCCD[k] = (medianCCD[k] < CCD_THRESH) ? 1 : 158;
     }
 }
 
-void calculateSumPrefix(int* leftCandidate, int* rightCandidate) {
+void calculateSumPrefix(int *leftCandidate, int *rightCandidate) {
     int k;
-    for (k = 0; k < 128-1; k++) {
-        sumDiffCCD[k] = schmittCCD[k]-schmittCCD[k+1];
+    for (k = 0; k < 128 - 1; k++) {
+        sumDiffCCD[k] = schmittCCD[k] - schmittCCD[k + 1];
     }
 
     for (k = 0; k < 127; k++) { //negative value means close to left edge
@@ -233,15 +236,15 @@ void runMedianFilter() {
     }
     //int firstMaxMedianIndex = 0;
     //int lastMaxMedianIndex = 0;
-    for (int j = 0; j <= WINDOWSIZE/2; j++) {
+    for (int j = 0; j <= WINDOWSIZE / 2; j++) {
         medianCCD[j] = getMedian(curWindow);
     }
 
     for (int k = WINDOWSIZE; k < 128; k++) {
         curWindow[indexOfOldest] = linear_ccd_buffer1[k];
         indexOfOldest++;
-        indexOfOldest%=WINDOWSIZE;
-        medianCCD[k-WINDOWSIZE/2] = getMedian(curWindow);
+        indexOfOldest %= WINDOWSIZE;
+        medianCCD[k - WINDOWSIZE / 2] = getMedian(curWindow);
         /*
         if (medianCCD[k-WINDOWSIZE/2] >= medianCCD[lastMaxMedianIndex]) {
         lastMaxMedianIndex = k - WINDOWSIZE/2;
@@ -254,169 +257,185 @@ void runMedianFilter() {
         medianCCD[k] = getMedian(curWindow);
     }
 }
+
 void bluetooth_handler() {
     if (bool_command_finish) {
         bool_command_finish = 0;
         uart_tx(COM3, "\nCOMPLETE COMMAND: %s\n", buffer);
-        char* cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
-        if (cmdptr == NULL){  //Account for invalid commands so it doesn't get stuck
-			uart_tx(COM3, "invalid command\n");
-			buffer_clear();
-			return;
-		}
-		char* valptr = cmdptr + 1;
-        char* idptr = cmdptr - 1;
-        int val = strtol(valptr, NULL,10); //Obtain Value
+        char *cmdptr = strchr(buffer, ':');    //Locate ptr where the char : is first found
+        if (cmdptr == NULL) {  //Account for invalid commands so it doesn't get stuck
+            uart_tx(COM3, "invalid command\n");
+            buffer_clear();
+            return;
+        }
+        char *valptr = cmdptr + 1;
+        char *idptr = cmdptr - 1;
+        int val = strtol(valptr, NULL, 10); //Obtain Value
         *cmdptr = '\0';
-        int id = strtol(idptr, NULL,10); //Obtain ID
+        int id = strtol(idptr, NULL, 10); //Obtain ID
         *idptr = '\0';
         uart_tx(COM3, "COMMAND: %s   ", buffer);
         uart_tx(COM3, "ID: %ld   ", id);
         uart_tx(COM3, "VAL: %ld\n", val);
 
-        if(strstr(buffer, "led")) { //if detect substring led(strstr returns a pointer)
+        if (strstr(buffer, "led")) { //if detect substring led(strstr returns a pointer)
             use_led(val, id); //LED
-        } else if(strstr(buffer,"motor")) { //if detect substring motor
+        } else if (strstr(buffer, "motor")) { //if detect substring motor
             use_motor(val, id); //MOTOR
-            uart_tx(COM3,"motor %ld is on \n", id);
-        } else if(strstr(buffer,"servo")) { //if detect substring servo
+            uart_tx(COM3, "motor %ld is on \n", id);
+        } else if (strstr(buffer, "servo")) { //if detect substring servo
             use_servo(val, id); //SERVO
             uart_tx(COM3, "servo %ld is on \n", id);
-        } else if(strstr(buffer,"pneumatic")) {
+        } else if (strstr(buffer, "pneumatic")) {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
-		} else if (strstr(buffer, "p")){ //have to type pp:1.
-			val /= 100.0;
-			switch(id){
-				case 0: //left
-				uart_tx(COM3, "set left p val to %f \n", val);
-				left_kp = val; break;
-				case 1: //Right
-				uart_tx(COM3, "set right p val to %f \n", val);
-				right_kp = val; break;
-				case 2:
-				uart_tx(COM3, "set both p val to % f \n", val);
-				left_kp = val; right_kp = val;
-			}
-		} else if (strstr(buffer,"i")){
-			val /= 100.0;
-			switch(id){
-				case 0: //left
-				uart_tx(COM3, "set left p val to %f \n", val);
-				left_ki = val; break;
-				case 1: //Right
-				uart_tx(COM3, "set right p val to %f \n", val);
-				right_ki = val; break;
-				case 2:
-				uart_tx(COM3, "set both p val to % f \n", val);
-				left_ki = val; right_ki = val;
-			}					
-		} else if (strstr(buffer, "d")){
-			val /= 100.0;
-			switch(id){
-				case 0: //left
-				uart_tx(COM3, "set left p val to %f \n", val);
-				left_kd = val; break;
-				case 1: //Right
-				uart_tx(COM3, "set right p val to %f \n", val);
-				right_kd = val; break;
-				case 2:
-				uart_tx(COM3, "set both p val to % f \n", val);
-				left_kd = val; right_kd = val;
-			}
-		} else if (strstr(buffer, "targe")){
-			uart_tx(COM3, "set target to %d", val);
-			target_enc_vel = val;
-		}
+        } else if (strstr(buffer, "p")) { //have to type pp:1.
+            val /= 100.0;
+            switch (id) {
+                case 0: //left
+                    uart_tx(COM3, "set left p val to %f \n", val);
+                    left_kp = val;
+                    break;
+                case 1: //Right
+                    uart_tx(COM3, "set right p val to %f \n", val);
+                    right_kp = val;
+                    break;
+                case 2:
+                    uart_tx(COM3, "set both p val to % f \n", val);
+                    left_kp = val;
+                    right_kp = val;
+            }
+        } else if (strstr(buffer, "i")) {
+            val /= 100.0;
+            switch (id) {
+                case 0: //left
+                    uart_tx(COM3, "set left p val to %f \n", val);
+                    left_ki = val;
+                    break;
+                case 1: //Right
+                    uart_tx(COM3, "set right p val to %f \n", val);
+                    right_ki = val;
+                    break;
+                case 2:
+                    uart_tx(COM3, "set both p val to % f \n", val);
+                    left_ki = val;
+                    right_ki = val;
+            }
+        } else if (strstr(buffer, "d")) {
+            val /= 100.0;
+            switch (id) {
+                case 0: //left
+                    uart_tx(COM3, "set left p val to %f \n", val);
+                    left_kd = val;
+                    break;
+                case 1: //Right
+                    uart_tx(COM3, "set right p val to %f \n", val);
+                    right_kd = val;
+                    break;
+                case 2:
+                    uart_tx(COM3, "set both p val to % f \n", val);
+                    left_kd = val;
+                    right_kd = val;
+            }
+        } else if (strstr(buffer, "targe")) {
+            uart_tx(COM3, "set target to %d", val);
+            target_enc_vel = val;
+        }
         buffer_clear();
     }
 }
 
 /*************************shooter robot *************************/
 void use_motor(long value, long id) {
-    if(value<100 && value>0) {
-        motor_control((MOTOR_ID)id, 1, value);
+    if (value < 100 && value > 0) {
+        motor_control((MOTOR_ID) id, 1, value);
     } else {
         uart_tx(COM3, "motor value is out of range\n");
     }
 }
 
 void use_pneumatic(long value, long id) {
-    pneumatic_control((PNEUMATIC_ID)id, value); //1 is on, others is off
+    pneumatic_control((PNEUMATIC_ID) id, value); //1 is on, others is off
 }
 
 void use_led(long value, long id) {
-    if(value == 1) {
-        led_on((LED_ID)id);
+    if (value == 1) {
+        led_on((LED_ID) id);
         uart_tx(COM3, "TURNED LED %ld ON\n", id);
     } else {
-        led_off((LED_ID)id);
+        led_off((LED_ID) id);
         uart_tx(COM3, "TURNED LED %ld OFF\n", id);
     }
 }
 
-double get_ang_vel(double change, u32 timePassed){
-	return change/timePassed;	//negative because we fucked up the wiring
+double get_ang_vel(double change, u32 timePassed) {
+    return change / timePassed;    //negative because we fucked up the wiring
 }
+
 //TIM3: left wheel
-int get_left_enc_pos_change(int old_enc_pos){
-	int change = 0;
-	int cur_left_enc_pos = TIM3->CNT; //use long?
-	if (old_enc_pos - cur_left_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
-		change += 65535;
-	} else if (old_enc_pos - cur_left_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
-		change -= 65535;
-	}	
-	change += (cur_left_enc_pos - old_enc_pos);
-	return change;
+int get_left_enc_pos_change(int old_enc_pos) {
+    int change = 0;
+    int cur_left_enc_pos = TIM3->CNT; //use long?
+    if (old_enc_pos - cur_left_enc_pos > 25000) { //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
+        change += 65535;
+    } else if (old_enc_pos - cur_left_enc_pos < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
+        change -= 65535;
+    }
+    change += (cur_left_enc_pos - old_enc_pos);
+    return change;
 }
+
 //TIM4: right wheel
-int get_right_enc_pos_change(int old_enc_pos){
-	int change = 0;
-	int cur_right_enc_pos = TIM4->CNT; //use long?
-	if (old_enc_pos - cur_right_enc_pos > 25000){ //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
-		change += 65535;
-	} else if (old_enc_pos - cur_right_enc_pos < - 25000){ //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
-		change -= 65535;
-	}	
-	change += (cur_right_enc_pos - old_enc_pos);
-	return change;
+int get_right_enc_pos_change(int old_enc_pos) {
+    int change = 0;
+    int cur_right_enc_pos = TIM4->CNT; //use long?
+    if (old_enc_pos - cur_right_enc_pos > 25000) { //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
+        change += 65535;
+    } else if (old_enc_pos - cur_right_enc_pos < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
+        change -= 65535;
+    }
+    change += (cur_right_enc_pos - old_enc_pos);
+    return change;
 }
-void PID_motor_update(){
-	timePassed = get_real_ticks() - lastEncoderReadTime;
-	lastEncoderReadTime = get_real_ticks();
 
-	double enc_Lerror = 0; //Error between target velocity and actual velocity
-	double enc_Rerror = 0;
-	
-	/******************************left**************************************/
-	enc_leftV = get_ang_vel( get_left_enc_pos_change(old_enc_leftX), timePassed); //Calculate the left velocity (pos - oldpos / time)
-	enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
-	
-	left_proportion = enc_Lerror;  //Calculate Proportion
-	left_derivative = (enc_Lerror - old_enc_Lerror)/timePassed;  //Calculate Derivative
-	left_integral += left_proportion*timePassed;  //Calculate Integral
+void PID_motor_update() {
+    timePassed = get_real_ticks() - lastEncoderReadTime;
+    lastEncoderReadTime = get_real_ticks();
 
-	left_motor_magnitude += left_proportion*left_kp + left_derivative*left_kd + left_integral*left_ki; //Speed = P + I + D
-	left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM); //Clamping
-	motor_control(MOTOR1, (left_motor_magnitude > 0? 0 : 1), abs((int)left_motor_magnitude)); //Use Speed
-	old_enc_leftX = TIM3->CNT;  //Update Old Position
-	old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
+    double enc_Lerror = 0; //Error between target velocity and actual velocity
+    double enc_Rerror = 0;
 
-	/*****************************Right**************************************/
-	enc_rightV = get_ang_vel( get_right_enc_pos_change(old_enc_rightX), timePassed);
-	enc_Rerror = target_enc_vel - enc_rightV;
+    /******************************left**************************************/
+    enc_leftV = get_ang_vel(get_left_enc_pos_change(old_enc_leftX),
+                            timePassed); //Calculate the left velocity (pos - oldpos / time)
+    enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
 
-	right_proportion = enc_Rerror;
-	right_derivative = (enc_Rerror - old_enc_Rerror)/timePassed;
-	right_integral += right_proportion*timePassed;
+    left_proportion = enc_Lerror;  //Calculate Proportion
+    left_derivative = (enc_Lerror - old_enc_Lerror) / timePassed;  //Calculate Derivative
+    left_integral += left_proportion * timePassed;  //Calculate Integral
 
-	right_motor_magnitude += right_proportion*right_kp + right_derivative*right_kd + right_integral*right_ki;
-	right_motor_magnitude = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
-	motor_control(MOTOR3, (right_motor_magnitude > 0? 0 : 1), abs((int)right_motor_magnitude));
-	old_enc_rightX = TIM4->CNT;
-	old_enc_Rerror = enc_Rerror;
+    left_motor_magnitude +=
+            left_proportion * left_kp + left_derivative * left_kd + left_integral * left_ki; //Speed = P + I + D
+    left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM); //Clamping
+    motor_control(MOTOR1, (left_motor_magnitude > 0 ? 0 : 1), abs((int) left_motor_magnitude)); //Use Speed
+    old_enc_leftX = TIM3->CNT;  //Update Old Position
+    old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
+
+    /*****************************Right**************************************/
+    enc_rightV = get_ang_vel(get_right_enc_pos_change(old_enc_rightX), timePassed);
+    enc_Rerror = target_enc_vel - enc_rightV;
+
+    right_proportion = enc_Rerror;
+    right_derivative = (enc_Rerror - old_enc_Rerror) / timePassed;
+    right_integral += right_proportion * timePassed;
+
+    right_motor_magnitude += right_proportion * right_kp + right_derivative * right_kd + right_integral * right_ki;
+    right_motor_magnitude = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
+    motor_control(MOTOR3, (right_motor_magnitude > 0 ? 0 : 1), abs((int) right_motor_magnitude));
+    old_enc_rightX = TIM4->CNT;
+    old_enc_Rerror = enc_Rerror;
 }
+
 int main() {
     led_init();
     gpio_init();
@@ -425,37 +444,36 @@ int main() {
     adc_init();
     button_init();
     set_keydown_listener(BUTTON2, &change_speed);
-	if (IS_SHOOTER_ROBOT == 0){ //cant use servo if you're using encoders because both use timer 3
-		servo_init(143,10000,0);
-	}
+    if (IS_SHOOTER_ROBOT == 0) { //cant use servo if you're using encoders because both use timer 3
+        servo_init(143, 10000, 0);
+    }
     tft_init(2, BLACK, WHITE);
     uart_init(COM3, 115200);
     uart_interrupt_init(COM3, &uart_listener); //com port, function
     uart_tx(COM3, "initialize\n");
-		uart_tx(COM3, ">>> ");
+    uart_tx(COM3, ">>> ");
     motor_init(143, 10000, 0);
-    if (IS_SHOOTER_ROBOT == 1) { 
+    if (IS_SHOOTER_ROBOT == 1) {
         init_encoder_left();
         init_encoder_right();
         while (1) {
-        	PID_motor_update(); //PID Motor Update
-        	bluetooth_handler();
-			tft_clear();
-			tft_prints(10, 10, "left: %d", TIM4->CNT);
-			tft_prints(10, 20, "right: %d", TIM3->CNT);
-			tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
-			tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
-			tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
-			tft_prints(10, 60, "Rerror: %.2f", old_enc_Rerror);
-			tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);	
-			tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
-			tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
-			tft_prints(10, 100,"Li: %.2f  Ri: %.2f", left_ki, right_ki);
-			tft_prints(10, 110,"Ld: %.2f  Rd: %.2f", left_kd, right_kd);
-		}
-    } 
-    else { // is smartcar code
-        while(1) {
+            PID_motor_update(); //PID Motor Update
+            bluetooth_handler();
+            tft_clear();
+            tft_prints(10, 10, "left: %d", TIM4->CNT);
+            tft_prints(10, 20, "right: %d", TIM3->CNT);
+            tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
+            tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
+            tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
+            tft_prints(10, 60, "Rerror: %.2f", old_enc_Rerror);
+            tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);
+            tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
+            tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
+            tft_prints(10, 100, "Li: %.2f  Ri: %.2f", left_ki, right_ki);
+            tft_prints(10, 110, "Ld: %.2f  Rd: %.2f", left_kd, right_kd);
+        }
+    } else { // is smartcar code
+        while (1) {
             tft_prints(0, 0, "calibrate ccd on dark area");
             tft_prints(10, 10, "any btn to continue");
             if (read_button(BUTTON1) == 0 || read_button(BUTTON2) == 0 || read_button(BUTTON3) == 0) {
@@ -471,9 +489,9 @@ int main() {
             //motor_control(2, 0, 50);
         }
         tft_clear();
-		int avg = 0; //avg of left and right edge
-		int leftEdge = 0, rightEdge = 0;
-        while(1) {
+        int avg = 0; //avg of left and right edge
+        int leftEdge = 0, rightEdge = 0;
+        while (1) {
             if (read_button(BUTTON1) == 0 && servo_pos < LEFTMOST) {
                 servo_pos += speed;
                 tft_fill_area(46, 72, 25, 12, BLACK);
@@ -492,9 +510,9 @@ int main() {
                 ccdTime = get_real_ticks();
                 int k;
                 for (k = 0; k < 128; k++) { //Clear CCD Screen
-                    tft_put_pixel(k, 159-linear_ccd_buffer1[k], BLACK);
-                    tft_put_pixel(k, 159-medianCCD[k], BLACK);
-                    tft_put_pixel(k, 159-schmittCCD[k], BLACK);
+                    tft_put_pixel(k, 159 - linear_ccd_buffer1[k], BLACK);
+                    tft_put_pixel(k, 159 - medianCCD[k], BLACK);
+                    tft_put_pixel(k, 159 - schmittCCD[k], BLACK);
                 }
                 if (leftEdge != -1) {
                     drawLine(leftEdge, 0, BLACK);
@@ -521,28 +539,28 @@ int main() {
                     drawLine(rightEdge, 0, GREEN);
                 }
 
-                avg = (leftEdge+rightEdge)/2;
+                avg = (leftEdge + rightEdge) / 2;
                 drawLine(avg, 0, RED);
 
                 tft_fill_area(38, 50, 80, 20, BLACK);
 
-                drawLine(64-MOVEMENT_SENS, 0, WHITE);
-                drawLine(64+MOVEMENT_SENS, 0, WHITE);
+                drawLine(64 - MOVEMENT_SENS, 0, WHITE);
+                drawLine(64 + MOVEMENT_SENS, 0, WHITE);
 
-                if (avg < 64-MOVEMENT_SENS) {
+                if (avg < 64 - MOVEMENT_SENS) {
                     tft_prints(38, 50, "L %d%",
-                               clamp(CENTER+ (LEFTMOST-CENTER)*((64-avg)/20.0), RIGHTMOST, LEFTMOST)
-                              );
+                               clamp(CENTER + (LEFTMOST - CENTER) * ((64 - avg) / 20.0), RIGHTMOST, LEFTMOST)
+                    );
                     servo_control(SERVO1,
-                                  clamp(CENTER+ (LEFTMOST-CENTER)*((64-avg)/20.0), RIGHTMOST, LEFTMOST)
-                                 );
-                } else if (avg > 64+MOVEMENT_SENS) {
+                                  clamp(CENTER + (LEFTMOST - CENTER) * ((64 - avg) / 20.0), RIGHTMOST, LEFTMOST)
+                    );
+                } else if (avg > 64 + MOVEMENT_SENS) {
                     tft_prints(38, 50, "R %d%",
-                               clamp(CENTER- (CENTER-RIGHTMOST)*((avg-64)/20.0), RIGHTMOST, LEFTMOST)
-                              );
+                               clamp(CENTER - (CENTER - RIGHTMOST) * ((avg - 64) / 20.0), RIGHTMOST, LEFTMOST)
+                    );
                     servo_control(SERVO1,
-                                  clamp(CENTER- (CENTER-RIGHTMOST)*((avg-64)/20.0), RIGHTMOST, LEFTMOST)
-                                 );
+                                  clamp(CENTER - (CENTER - RIGHTMOST) * ((avg - 64) / 20.0), RIGHTMOST, LEFTMOST)
+                    );
                 } else {
                     servo_control(SERVO1, CENTER);
                     tft_prints(50, 50, "%d", CENTER);
@@ -550,16 +568,16 @@ int main() {
 
 
                 for (k = 0; k < 128; k++) { //Add CCD onto Screen
-                    tft_put_pixel(k, 159-linear_ccd_buffer1[k], RED);
-                    tft_put_pixel(k, 159-schmittCCD[k], GREEN);
-                    tft_put_pixel(k, 159-medianCCD[k], WHITE);
+                    tft_put_pixel(k, 159 - linear_ccd_buffer1[k], RED);
+                    tft_put_pixel(k, 159 - schmittCCD[k], GREEN);
+                    tft_put_pixel(k, 159 - medianCCD[k], WHITE);
                 }
                 int h;
-                for(h = 0; h < 159; h+=20) { //draw label
-                    tft_prints(2, h, "%d", 159-h);
+                for (h = 0; h < 159; h += 20) { //draw label
+                    tft_prints(2, h, "%d", 159 - h);
                 }
             }
-            
+
         }
     }
 }
