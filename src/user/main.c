@@ -28,16 +28,16 @@ double right_motor_magnitude = 0;
 
 //PID Control
 
-long target_enc_vel = 40; //target encoder velocity in ticks/ms
+double target_enc_vel = 40; //target encoder velocity in ticks/ms
 u32 lastEncoderReadTime = 0;
 u32 timePassed = 0;
 
 long old_enc_leftX = 0;
 long old_enc_rightX = 0;
-long enc_leftV = 0; //left encoder angular velocity
-long enc_rightV = 0;
-int old_enc_Lerror = 0;
-int old_enc_Rerror = 0;
+double enc_leftV = 0; //left encoder angular velocity
+double enc_rightV = 0;
+double old_enc_Lerror = 0;
+double old_enc_Rerror = 0;
 
 //PID
 double left_proportion = 0;
@@ -56,6 +56,7 @@ double right_kp = 0;
 double right_ki = 0;
 double right_kd = 0;
 
+const int MOTOR_MAGNITUDE_LIM = 8000;
 
 //////carrier robot (smartcar)
 //bluetooth
@@ -92,7 +93,7 @@ u16 servo_pos = 750;
 u8 speed = 20;
 
 /*************************misc functions*************************/
-float clamp(float val, int min, int max) {
+double clamp(double val, int min, int max) {
     if (val < min)
         return min;
     if (val > max)
@@ -300,7 +301,11 @@ void bluetooth_handler() {
 						} else if (id == 1){
 							uart_tx(COM3, "set right p val to %f \n", val/100.0);
 							right_kp = val/100.0;
-						}		
+						} else if (id == 2){
+							uart_tx(COM3, "set both p val to %f \n", val/100.0);
+							left_kp = val/100.0;
+							right_kp = val/100.0;
+						}
 				} else if (strstr(buffer,"i")){
 						if (id == 0){ //left
 							uart_tx(COM3, "set left i val to %f \n", val/100.0);
@@ -308,7 +313,11 @@ void bluetooth_handler() {
 						} else if (id == 1){
 							uart_tx(COM3, "set right i val by %f \n", val/100.0);
 							right_ki = val/100.0;
-						}						
+						}	else if (id == 2){
+							uart_tx(COM3, "set both i val to %f \n", val/100.0);
+							left_ki = val/100.0;
+							right_ki = val/100.0;
+						}	
 				} else if (strstr(buffer, "d")){
 						if (id == 0){ //left
 							uart_tx(COM3, "set left d val to %f \n", val/100.0);
@@ -316,7 +325,11 @@ void bluetooth_handler() {
 						} else if (id == 1){
 							uart_tx(COM3, "set right d val to %f \n", val/100.0);
 							right_kd = val/100.0;
-						}		
+						} else if (id == 2){
+							uart_tx(COM3, "set both d val to %f \n", val/100.0);
+							left_kd = val/100.0;
+							right_kd = val/100.0;
+						}
 				} else if (strstr(buffer, "targe")){
 						uart_tx(COM3, "set target to %d", val);
 						target_enc_vel = val;
@@ -351,7 +364,7 @@ void use_led(long value, long id) {
 
 
 double get_ang_vel(double change, u32 timePassed){
-	return -change/timePassed;	//negative because we fucked up the wiring
+	return change/timePassed;	//negative because we fucked up the wiring
 }
 //TIM3: left wheel
 int get_left_enc_pos_change(int old_enc_pos){
@@ -381,20 +394,20 @@ void PID_motor_update(){
 	timePassed = get_real_ticks() - lastEncoderReadTime;
 	lastEncoderReadTime = get_real_ticks();
 
-	int enc_Lerror = 0; //Error between target velocity and actual velocity
-	int enc_Rerror = 0;
+	double enc_Lerror = 0; //Error between target velocity and actual velocity
+	double enc_Rerror = 0;
 	
 	/******************************left**************************************/
 	enc_leftV = get_ang_vel( get_left_enc_pos_change(old_enc_leftX), timePassed); //Calculate the left velocity (pos - oldpos / time)
 	enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
 	
 	left_proportion = enc_Lerror;  //Calculate Proportion
-	left_derivative = enc_Lerror - old_enc_Lerror;  //Calculate Derivative
-	left_integral += left_proportion;  //Calculate Integral
+	left_derivative = (enc_Lerror - old_enc_Lerror)/timePassed;  //Calculate Derivative
+	left_integral += left_proportion*timePassed;  //Calculate Integral
 
 	left_motor_magnitude += left_proportion*left_kp + left_derivative*left_kd + left_integral*left_ki; //Speed = P + I + D
-	left_motor_magnitude = clamp(left_motor_magnitude, 1, 5000); //Clamping
-	motor_control(MOTOR1, 0, (int)left_motor_magnitude); //Use Speed
+	left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM); //Clamping
+	motor_control(MOTOR1, (left_motor_magnitude > 0? 0 : 1), abs((int)left_motor_magnitude)); //Use Speed
 	old_enc_leftX = TIM3->CNT;  //Update Old Position
 	old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
 
@@ -403,12 +416,12 @@ void PID_motor_update(){
 	enc_Rerror = target_enc_vel - enc_rightV;
 
 	right_proportion = enc_Rerror;
-	right_derivative = enc_Rerror - old_enc_Rerror;
-	right_integral += right_proportion;
+	right_derivative = (enc_Rerror - old_enc_Rerror)/timePassed;
+	right_integral += right_proportion*timePassed;
 
 	right_motor_magnitude += right_proportion*right_kp + right_derivative*right_kd + right_integral*right_ki;
-	right_motor_magnitude = clamp(right_motor_magnitude, 1, 5000);
-	motor_control(MOTOR3, 0, (int)right_motor_magnitude);
+	right_motor_magnitude = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
+	motor_control(MOTOR3, (right_motor_magnitude > 0? 0 : 1), abs((int)right_motor_magnitude));
 	old_enc_rightX = TIM4->CNT;
 	old_enc_Rerror = enc_Rerror;
 }
@@ -438,15 +451,15 @@ int main() {
 					tft_clear();
 					tft_prints(10, 10, "left: %d", TIM4->CNT);
 					tft_prints(10, 20, "right: %d", TIM3->CNT);
-					tft_prints(10, 30, "Lmotor mag: %f", left_motor_magnitude);
-					tft_prints(10, 40, "Rmotor mag: %f", right_motor_magnitude);
-					tft_prints(10, 50, "Lerror: %d", old_enc_Lerror);
-					tft_prints(10, 60, "Rerror: %d", old_enc_Rerror);
-					tft_prints(10, 70, "L cur_vel:%d  target:%d", enc_leftV, target_enc_vel);	
-					tft_prints(10, 80, "R cur_vel:%d  target:%d", enc_rightV, target_enc_vel);
-					tft_prints(10, 90, "L_p:%.2f  R_p:%.2f", left_kp, right_kp);
-					tft_prints(10, 100,"L_i:%.2f   R_i:%.2f", left_ki, right_ki);
-					tft_prints(10, 110,"L_d:%.2f  R_d:%.2f", left_kd, right_kd);
+					tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
+					tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
+					tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
+					tft_prints(10, 60, "Rerror: %.2f", old_enc_Rerror);
+					tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);	
+					tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
+					tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
+					tft_prints(10, 100,"Li: %.2f  Ri: %.2f", left_ki, right_ki);
+					tft_prints(10, 110,"Ld: %.2f  Rd: %.2f", left_kd, right_kd);
 				}
 
     } else { // is smartcar code
