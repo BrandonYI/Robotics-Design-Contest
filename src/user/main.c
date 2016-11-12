@@ -67,7 +67,6 @@ char curKey = '\0';
 
 int buffer_index = 0;
 int bool_command_finish = 0;
-int bool_need_clear_buffer = 0;
 int timeSinceLastCommand = 0; //to check if key no longer pressed
 int curTime = 0; //for comparing with timeSinceLastCommand
 
@@ -117,7 +116,7 @@ void drawLine(int val, int isHorizontal, u16 color) {
     }
 }
 
-int bitStringToInt(int a, int b) {  //What is this for? This is super inefficient
+int bitStringToInt(int a, int b) {
     if (a == 1 && b == 1) {
         return 3;
     } else if (a == 1 && b == 0) {
@@ -131,11 +130,8 @@ int bitStringToInt(int a, int b) {  //What is this for? This is super inefficien
 
 /*************************carrier robot (smartcar)*************************/
 void buffer_clear() {
-    if (bool_need_clear_buffer) {
-        bool_need_clear_buffer = 0;
-        buffer_index = 0;
-        uart_tx(COM3, "\n>>> ");
-    }
+    buffer_index = 0;
+    uart_tx(COM3, "\n>>> ");
 }
 
 void change_speed(void) {
@@ -170,7 +166,7 @@ void uart_listener(const u8 byte) {
         buffer_index = 0;
     }
     if(byte == 'x') {	//If you make a typo, press x to reset buffer
-        bool_need_clear_buffer = 1;
+        buffer_clear();
         buffer_index = 0;
     }
 }
@@ -258,21 +254,17 @@ void runMedianFilter() {
         medianCCD[k] = getMedian(curWindow);
     }
 }
-
 void bluetooth_handler() {
     if (bool_command_finish) {
         bool_command_finish = 0;
         uart_tx(COM3, "\nCOMPLETE COMMAND: %s\n", buffer);
-
         char* cmdptr = strchr(buffer, ':');	//Locate ptr where the char : is first found
-        if (cmdptr == NULL){
-					uart_tx(COM3, "invalid command\n");
-					uart_tx(COM3, ">>> ");					
-					buffer_clear();
-					return;
-				}
-			
-				char* valptr = cmdptr + 1;
+        if (cmdptr == NULL){  //Account for invalid commands so it doesn't get stuck
+			uart_tx(COM3, "invalid command\n");
+			buffer_clear();
+			return;
+		}
+		char* valptr = cmdptr + 1;
         char* idptr = cmdptr - 1;
         int val = strtol(valptr, NULL,10); //Obtain Value
         *cmdptr = '\0';
@@ -283,7 +275,6 @@ void bluetooth_handler() {
         uart_tx(COM3, "VAL: %ld\n", val);
 
         if(strstr(buffer, "led")) { //if detect substring led(strstr returns a pointer)
-            bool_need_clear_buffer = 1;
             use_led(val, id); //LED
         } else if(strstr(buffer,"motor")) { //if detect substring motor
             use_motor(val, id); //MOTOR
@@ -294,49 +285,51 @@ void bluetooth_handler() {
         } else if(strstr(buffer,"pneumatic")) {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
-				} else if (strstr(buffer, "p")){ //have to type pp:1.
-						if (id == 0){ //left
-							uart_tx(COM3, "set left p val to %f \n", val/100.0);
-							left_kp = val/100.0;
-						} else if (id == 1){
-							uart_tx(COM3, "set right p val to %f \n", val/100.0);
-							right_kp = val/100.0;
-						} else if (id == 2){
-							uart_tx(COM3, "set both p val to %f \n", val/100.0);
-							left_kp = val/100.0;
-							right_kp = val/100.0;
-						}
-				} else if (strstr(buffer,"i")){
-						if (id == 0){ //left
-							uart_tx(COM3, "set left i val to %f \n", val/100.0);
-							left_ki = val/100.0;
-						} else if (id == 1){
-							uart_tx(COM3, "set right i val by %f \n", val/100.0);
-							right_ki = val/100.0;
-						}	else if (id == 2){
-							uart_tx(COM3, "set both i val to %f \n", val/100.0);
-							left_ki = val/100.0;
-							right_ki = val/100.0;
-						}	
-				} else if (strstr(buffer, "d")){
-						if (id == 0){ //left
-							uart_tx(COM3, "set left d val to %f \n", val/100.0);
-							left_kd = val/100.0;
-						} else if (id == 1){
-							uart_tx(COM3, "set right d val to %f \n", val/100.0);
-							right_kd = val/100.0;
-						} else if (id == 2){
-							uart_tx(COM3, "set both d val to %f \n", val/100.0);
-							left_kd = val/100.0;
-							right_kd = val/100.0;
-						}
-				} else if (strstr(buffer, "targe")){
-						uart_tx(COM3, "set target to %d", val);
-						target_enc_vel = val;
-				}
-        bool_need_clear_buffer = 1;
+		} else if (strstr(buffer, "p")){ //have to type pp:1.
+			val /= 100.0;
+			switch(id){
+				case 0: //left
+				uart_tx(COM3, "set left p val to %f \n", val);
+				left_kp = val; break;
+				case 1: //Right
+				uart_tx(COM3, "set right p val to %f \n", val);
+				right_kp = val; break;
+				case 2:
+				uart_tx(COM3, "set both p val to % f \n", val);
+				left_kp = val; right_kp = val;
+			}
+		} else if (strstr(buffer,"i")){
+			val /= 100.0;
+			switch(id){
+				case 0: //left
+				uart_tx(COM3, "set left p val to %f \n", val);
+				left_ki = val; break;
+				case 1: //Right
+				uart_tx(COM3, "set right p val to %f \n", val);
+				right_ki = val; break;
+				case 2:
+				uart_tx(COM3, "set both p val to % f \n", val);
+				left_ki = val; right_ki = val;
+			}					
+		} else if (strstr(buffer, "d")){
+			val /= 100.0;
+			switch(id){
+				case 0: //left
+				uart_tx(COM3, "set left p val to %f \n", val);
+				left_kd = val; break;
+				case 1: //Right
+				uart_tx(COM3, "set right p val to %f \n", val);
+				right_kd = val; break;
+				case 2:
+				uart_tx(COM3, "set both p val to % f \n", val);
+				left_kd = val; right_kd = val;
+			}
+		} else if (strstr(buffer, "targe")){
+			uart_tx(COM3, "set target to %d", val);
+			target_enc_vel = val;
+		}
+        buffer_clear();
     }
-    buffer_clear();
 }
 
 /*************************shooter robot *************************/
@@ -361,7 +354,6 @@ void use_led(long value, long id) {
         uart_tx(COM3, "TURNED LED %ld OFF\n", id);
     }
 }
-
 
 double get_ang_vel(double change, u32 timePassed){
 	return change/timePassed;	//negative because we fucked up the wiring
@@ -448,21 +440,21 @@ int main() {
         while (1) {
         	PID_motor_update(); //PID Motor Update
         	bluetooth_handler();
-					tft_clear();
-					tft_prints(10, 10, "left: %d", TIM4->CNT);
-					tft_prints(10, 20, "right: %d", TIM3->CNT);
-					tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
-					tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
-					tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
-					tft_prints(10, 60, "Rerror: %.2f", old_enc_Rerror);
-					tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);	
-					tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
-					tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
-					tft_prints(10, 100,"Li: %.2f  Ri: %.2f", left_ki, right_ki);
-					tft_prints(10, 110,"Ld: %.2f  Rd: %.2f", left_kd, right_kd);
-				}
-
-    } else { // is smartcar code
+			tft_clear();
+			tft_prints(10, 10, "left: %d", TIM4->CNT);
+			tft_prints(10, 20, "right: %d", TIM3->CNT);
+			tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
+			tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
+			tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
+			tft_prints(10, 60, "Rerror: %.2f", old_enc_Rerror);
+			tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);	
+			tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
+			tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
+			tft_prints(10, 100,"Li: %.2f  Ri: %.2f", left_ki, right_ki);
+			tft_prints(10, 110,"Ld: %.2f  Rd: %.2f", left_kd, right_kd);
+		}
+    } 
+    else { // is smartcar code
         while(1) {
             tft_prints(0, 0, "calibrate ccd on dark area");
             tft_prints(10, 10, "any btn to continue");
