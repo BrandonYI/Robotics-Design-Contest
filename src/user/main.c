@@ -290,52 +290,52 @@ void bluetooth_handler() {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
         } else if (strstr(buffer, "p")) { //have to type pp:1.
-            val /= 100.0;
+            double dval = val/100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", val);
-                    left_kp = val;
+                    uart_tx(COM3, "set left p val to %f \n", dval);
+                    left_kp = dval;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", val);
+                    uart_tx(COM3, "set right p val to %f \n", dval);
                     right_kp = val;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", val);
-                    left_kp = val;
-                    right_kp = val;
+                    uart_tx(COM3, "set both p val to % f \n", dval);
+                    left_kp = dval;
+                    right_kp = dval;
             }
         } else if (strstr(buffer, "i")) {
-            val /= 100.0;
+            double dval = val/100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", val);
-                    left_ki = val;
+                    uart_tx(COM3, "set left p val to %f \n", dval);
+                    left_ki = dval;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", val);
-                    right_ki = val;
+                    uart_tx(COM3, "set right p val to %f \n", dval);
+                    right_ki = dval;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", val);
-                    left_ki = val;
-                    right_ki = val;
+                    uart_tx(COM3, "set both p val to % f \n", dval);
+                    left_ki = dval;
+                    right_ki = dval;
             }
         } else if (strstr(buffer, "d")) {
-            val /= 100.0;
+            double dval = val/100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", val);
-                    left_kd = val;
+                    uart_tx(COM3, "set left p val to %f \n", dval);
+                    left_kd = dval;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", val);
-                    right_kd = val;
+                    uart_tx(COM3, "set right p val to %f \n", dval);
+                    right_kd = dval;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", val);
-                    left_kd = val;
-                    right_kd = val;
+                    uart_tx(COM3, "set both p val to % f \n", dval);
+                    left_kd = dval;
+                    right_kd = dval;
             }
         } else if (strstr(buffer, "targe")) {
             uart_tx(COM3, "set target to %d", val);
