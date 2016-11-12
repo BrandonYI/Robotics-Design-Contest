@@ -298,7 +298,7 @@ void bluetooth_handler() {
                     break;
                 case 1: //Right
                     uart_tx(COM3, "set right p val to %f \n", dval);
-                    right_kp = val;
+                    right_kp = dval;
                     break;
                 case 2:
                     uart_tx(COM3, "set both p val to % f \n", dval);
@@ -309,15 +309,15 @@ void bluetooth_handler() {
             double dval = val/100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", dval);
+                    uart_tx(COM3, "set left i val to %f \n", dval);
                     left_ki = dval;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", dval);
+                    uart_tx(COM3, "set right i val to %f \n", dval);
                     right_ki = dval;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", dval);
+                    uart_tx(COM3, "set both i val to % f \n", dval);
                     left_ki = dval;
                     right_ki = dval;
             }
@@ -325,15 +325,15 @@ void bluetooth_handler() {
             double dval = val/100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", dval);
+                    uart_tx(COM3, "set left d val to %f \n", dval);
                     left_kd = dval;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", dval);
+                    uart_tx(COM3, "set right d val to %f \n", dval);
                     right_kd = dval;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", dval);
+                    uart_tx(COM3, "set both d val to % f \n", dval);
                     left_kd = dval;
                     right_kd = dval;
             }
@@ -406,16 +406,14 @@ void PID_motor_update() {
     double enc_Rerror = 0;
 
     /******************************left**************************************/
-    enc_leftV = get_ang_vel(get_left_enc_pos_change(old_enc_leftX),
-                            timePassed); //Calculate the left velocity (pos - oldpos / time)
+    enc_leftV = get_ang_vel(get_left_enc_pos_change(old_enc_leftX), timePassed); //Calculate the left velocity (pos - oldpos / time)
     enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
 
     left_proportion = enc_Lerror;  //Calculate Proportion
     left_derivative = (enc_Lerror - old_enc_Lerror) / timePassed;  //Calculate Derivative
     left_integral += left_proportion * timePassed;  //Calculate Integral
 
-    left_motor_magnitude +=
-            left_proportion * left_kp + left_derivative * left_kd + left_integral * left_ki; //Speed = P + I + D
+    left_motor_magnitude += left_proportion * left_kp + left_derivative * left_kd + left_integral * left_ki; //Speed = P + I + D
     left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM); //Clamping
     motor_control(MOTOR1, (left_motor_magnitude > 0 ? 0 : 1), abs((int) left_motor_magnitude)); //Use Speed
     old_enc_leftX = TIM3->CNT;  //Update Old Position
