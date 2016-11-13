@@ -290,50 +290,47 @@ void bluetooth_handler() {
             use_pneumatic(val, id); //PNEUMATIC
             uart_tx(COM3, "pneumatic %ld is on \n", id);
         } else if (strstr(buffer, "p")) { //have to type pp:1.
-            val /= 100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", val);
+                    uart_tx(COM3, "set left p val to %d \n", val);
                     left_kp = val;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", val);
+                    uart_tx(COM3, "set right p val to %d \n", val);
                     right_kp = val;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", val);
+                    uart_tx(COM3, "set both p val to %d \n", val);
                     left_kp = val;
                     right_kp = val;
             }
         } else if (strstr(buffer, "i")) {
-            val /= 100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", val);
-                    left_ki = val;
+                    uart_tx(COM3, "set left i val to %f \n", val/100.0);
+                    left_ki = val/100000.0;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", val);
-                    right_ki = val;
+                    uart_tx(COM3, "set right i val to %f \n", val);
+                    right_ki = val/100000.0;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", val);
-                    left_ki = val;
-                    right_ki = val;
+                    uart_tx(COM3, "set both i val to %f \n", val);
+                    left_ki = val/100000.0;
+                    right_ki = val/100000.0;
             }
         } else if (strstr(buffer, "d")) {
-            val /= 100.0;
             switch (id) {
                 case 0: //left
-                    uart_tx(COM3, "set left p val to %f \n", val);
+                    uart_tx(COM3, "set left d val to %d \n", val);
                     left_kd = val;
                     break;
                 case 1: //Right
-                    uart_tx(COM3, "set right p val to %f \n", val);
+                    uart_tx(COM3, "set right d val to %d \n", val);
                     right_kd = val;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to % f \n", val);
+                    uart_tx(COM3, "set both d val to %d \n", val);
                     left_kd = val;
                     right_kd = val;
             }
@@ -369,7 +366,7 @@ void use_led(long value, long id) {
 }
 
 double get_ang_vel(double change, u32 timePassed) {
-    return change / timePassed;    //negative because we fucked up the wiring
+    return change / timePassed;    
 }
 
 //TIM3: left wheel
@@ -414,8 +411,8 @@ void PID_motor_update() {
     left_derivative = (enc_Lerror - old_enc_Lerror) / timePassed;  //Calculate Derivative
     left_integral += left_proportion * timePassed;  //Calculate Integral
 
-    left_motor_magnitude +=
-            left_proportion * left_kp + left_derivative * left_kd + left_integral * left_ki; //Speed = P + I + D
+    left_motor_magnitude += left_proportion * left_kp + left_derivative * left_kd + left_integral * left_ki; //Speed = P + I + D
+		uart_tx(COM3, "LEFT p:%f, i:%f, d:%f         ", left_proportion*left_kp, left_integral*left_ki, left_derivative*left_kd);
     left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM); //Clamping
     motor_control(MOTOR1, (left_motor_magnitude > 0 ? 0 : 1), abs((int) left_motor_magnitude)); //Use Speed
     old_enc_leftX = TIM3->CNT;  //Update Old Position
@@ -430,6 +427,7 @@ void PID_motor_update() {
     right_integral += right_proportion * timePassed;
 
     right_motor_magnitude += right_proportion * right_kp + right_derivative * right_kd + right_integral * right_ki;
+		uart_tx(COM3, "RIGHT p:%f, i:%f, d:%f   \n", right_proportion*right_kp, right_integral*right_ki, right_derivative*right_kd);
     right_motor_magnitude = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
     motor_control(MOTOR3, (right_motor_magnitude > 0 ? 0 : 1), abs((int) right_motor_magnitude));
     old_enc_rightX = TIM4->CNT;
@@ -469,7 +467,7 @@ int main() {
             tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);
             tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
             tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
-            tft_prints(10, 100, "Li: %.2f  Ri: %.2f", left_ki, right_ki);
+            tft_prints(10, 100, "Li: %.3e  Ri: %.3e", left_ki, right_ki);
             tft_prints(10, 110, "Ld: %.2f  Rd: %.2f", left_kd, right_kd);
         }
     } else { // is smartcar code
