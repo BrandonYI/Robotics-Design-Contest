@@ -1,5 +1,4 @@
 #include "main.h"
-
 const int IS_SHOOTER_ROBOT = 1; //to decide which while loop to use
 
 ////prototypes
@@ -21,7 +20,7 @@ void use_led(long, long);
 /*int encoderArr[4][4] = {
     {0, -1, 1, 0},
     {1, 0, 0, -1},
-    {-1, 0, 0, 1},
+    {-1, 0, 0, 1},	
     {0, 1, -1, 0}
 };*/
 //motor 
@@ -40,8 +39,8 @@ double enc_leftV = 0; //left encoder angular velocity
 double enc_rightV = 0;
 double old_enc_Lerror = 0;
 double old_enc_Rerror = 0;
-
-//PID
+double old_motor_error = 0;
+//PID P and D can be local var if not needed for debugging
 double left_proportion = 0;
 double left_derivative = 0;
 double left_integral = 0;
@@ -50,6 +49,7 @@ double right_derivative = 0;
 double right_integral = 0;
 
 //Constants for Tuning PID
+double motor_kp = 0;
 double left_kp = 0;
 double left_ki = 0;
 double left_kd = 0;
@@ -57,20 +57,14 @@ double left_kd = 0;
 double right_kp = 0;
 double right_ki = 0;
 double right_kd = 0;
-
 const int MOTOR_MAGNITUDE_LIM = 8000;
 
 //////carrier robot (smartcar)
 //bluetooth
 const int MAXBUFFER = 100; //max buffer size for smartcar bluetooth incoming message
 char buffer[MAXBUFFER] = {0}; //stores current input chars
-char manual_buffer[MAXBUFFER] = {0};
-char curKey = '\0';
-
 int buffer_index = 0;
 int bool_command_finish = 0;
-int timeSinceLastCommand = 0; //to check if key no longer pressed
-int curTime = 0; //for comparing with timeSinceLastCommand
 
 //ccd
 int ccdTime = 0; //for comparing with get_real_ticks() to know if its time to refresh ccd data
@@ -94,6 +88,7 @@ u16 servo_pos = 750;
 u8 speed = 20;
 
 /*************************misc functions*************************/
+//Convert to Macros or Inline in the Future
 double clamp(double val, int min, int max) {
     if (val < min)
         return min;
@@ -158,8 +153,6 @@ void use_servo(long value, long id) {
 }
 
 void uart_listener(const u8 byte) {
-    curTime = get_real_ticks();
-    timeSinceLastCommand = 0;
     buffer[buffer_index++] = byte;
     buffer[buffer_index] = '\0';
     uart_tx(COM3, "%c", byte);
@@ -300,9 +293,13 @@ void bluetooth_handler() {
                     right_kp = val;
                     break;
                 case 2:
-                    uart_tx(COM3, "set both p val to %d \n", val);
-                    left_kp = val;
-                    right_kp = val;
+                    uart_tx(COM3, "set both p val to % f \n", dval);
+                    left_kp = dval;
+                    right_kp = dval;
+                    break;
+                case 3:
+                	uart_tx(COM3, "set motor p val to $ f \n", dval);
+                	motor_kp = dval;
             }
         } else if (strstr(buffer, "i")) {
             switch (id) {
@@ -401,11 +398,19 @@ void PID_motor_update() {
 
     double enc_Lerror = 0; //Error between target velocity and actual velocity
     double enc_Rerror = 0;
-
-    /******************************left**************************************/
+    double motor_error = 0;
+    /******************************Error Calculation**************************/
     enc_leftV = get_ang_vel(get_left_enc_pos_change(old_enc_leftX), timePassed); //Calculate the left velocity (pos - oldpos / time)
     enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
+    enc_rightV = get_ang_vel(get_right_enc_pos_change(old_enc_rightX), timePassed);
+    enc_Rerror = target_enc_vel - enc_rightV;
 
+    /******************************Motor Proportional Control******************************/
+    motor_error = enc_leftV - enc_rightV;
+    left_motor_magnitude += motor_error * motor_kp;
+	old_motor_error = motor_error;  //Considering whether I is needed
+	
+    /******************************left**************************************/
     left_proportion = enc_Lerror;  //Calculate Proportion
     left_derivative = (enc_Lerror - old_enc_Lerror) / timePassed;  //Calculate Derivative
     left_integral += left_proportion * timePassed;  //Calculate Integral
@@ -418,9 +423,6 @@ void PID_motor_update() {
     old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
 
     /*****************************Right**************************************/
-    enc_rightV = get_ang_vel(get_right_enc_pos_change(old_enc_rightX), timePassed);
-    enc_Rerror = target_enc_vel - enc_rightV;
-
     right_proportion = enc_Rerror;
     right_derivative = (enc_Rerror - old_enc_Rerror) / timePassed;
     right_integral += right_proportion * timePassed;
@@ -457,8 +459,8 @@ int main() {
             PID_motor_update(); //PID Motor Update
             bluetooth_handler();
             tft_clear();
-            tft_prints(10, 10, "left: %d", TIM4->CNT);
-            tft_prints(10, 20, "right: %d", TIM3->CNT);
+            tft_prints(10, 10, "left: %d      right: %d", TIM3->CNT, TIM4->CNT);
+            tft_prints(10, 20, "motor error: %f", old_motor_error);
             tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
             tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
             tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
@@ -545,19 +547,11 @@ int main() {
                 drawLine(64 + MOVEMENT_SENS, 0, WHITE);
 
                 if (avg < 64 - MOVEMENT_SENS) {
-                    tft_prints(38, 50, "L %d%",
-                               clamp(CENTER + (LEFTMOST - CENTER) * ((64 - avg) / 20.0), RIGHTMOST, LEFTMOST)
-                    );
-                    servo_control(SERVO1,
-                                  clamp(CENTER + (LEFTMOST - CENTER) * ((64 - avg) / 20.0), RIGHTMOST, LEFTMOST)
-                    );
+                    tft_prints(38, 50, "L %d%", clamp(CENTER + (LEFTMOST - CENTER) * ((64 - avg) / 20.0), RIGHTMOST, LEFTMOST));
+                    servo_control(SERVO1, clamp(CENTER + (LEFTMOST - CENTER) * ((64 - avg) / 20.0), RIGHTMOST, LEFTMOST));
                 } else if (avg > 64 + MOVEMENT_SENS) {
-                    tft_prints(38, 50, "R %d%",
-                               clamp(CENTER - (CENTER - RIGHTMOST) * ((avg - 64) / 20.0), RIGHTMOST, LEFTMOST)
-                    );
-                    servo_control(SERVO1,
-                                  clamp(CENTER - (CENTER - RIGHTMOST) * ((avg - 64) / 20.0), RIGHTMOST, LEFTMOST)
-                    );
+                    tft_prints(38, 50, "R %d%",clamp(CENTER - (CENTER - RIGHTMOST) * ((avg - 64) / 20.0), RIGHTMOST, LEFTMOST));
+                    servo_control(SERVO1, clamp(CENTER - (CENTER - RIGHTMOST) * ((avg - 64) / 20.0), RIGHTMOST, LEFTMOST));
                 } else {
                     servo_control(SERVO1, CENTER);
                     tft_prints(50, 50, "%d", CENTER);
