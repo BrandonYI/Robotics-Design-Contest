@@ -35,6 +35,8 @@ double target_enc_vel = 40; //target encoder velocity in ticks/ms
 u32 lastEncoderReadTime = 0;
 u32 timePassed = 0;
 int reached_target = 0;
+int update_constant = 0;
+
 long old_enc_leftX = 0;
 long old_enc_rightX = 0;
 double enc_leftV = 0; //left encoder angular velocity
@@ -350,8 +352,11 @@ void bluetooth_handler() {
         } else if (strstr(buffer, "targe")) {
             uart_tx(COM3, "set target to %d", val);
             target_enc_vel = val;
+        } else if(strstr(buffer, "updat")){
+        	uart_tx(COM3, "Change update constant to: %d", val);
+        	update_constant = val;
         }
-				uart_tx(COM3, "MOTOR1:%f", motor_error * motor_kp);
+		uart_tx(COM3, "MOTOR1:%f", motor_error * motor_kp);
         uart_tx(COM3, "LEFT p:%f, i:%f, d:%f         ", left_proportion*left_kp, left_integral*left_ki, left_derivative*left_kd);
         uart_tx(COM3, "RIGHT p:%f, i:%f, d:%f   \n", right_proportion*right_kp, right_integral*right_ki, right_derivative*right_kd);
         buffer_clear();
@@ -394,8 +399,7 @@ int get_left_enc_pos_change(int old_enc_pos) {
     } else if (old_enc_pos - cur_left_enc_pos < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
         change -= 65535;
     }
-    change += (cur_left_enc_pos - old_enc_pos);
-    return change;
+    return change += (cur_left_enc_pos - old_enc_pos);
 }
 
 //TIM4: right wheel
@@ -407,18 +411,17 @@ int get_right_enc_pos_change(int old_enc_pos) {
     } else if (old_enc_pos - cur_right_enc_pos < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
         change -= 65535;
     }
-    change += (cur_right_enc_pos - old_enc_pos);
-    return change;
+    return change += (cur_right_enc_pos - old_enc_pos);
 }
 
 void gradual_update(int motor_id, double target_value){
 	if(motor_id == 0){ //Left
 		if(!reached_target){
 			if(target_value > left_motor_magnitude){
-				left_motor_magnitude += 2
+				left_motor_magnitude += update_constant;
 			} 
 			else if(target_value < left_motor_magnitude){
-				left_motor_magnitude -= 2; //increment by two slowly
+				left_motor_magnitude -= update_constant; //increment by two slowly
 			}
 			motor_control(MOTOR1,(left_motor_magnitude > 0 ? 0 : 1), left_motor_magnitude);
 			if (target_value == left_motor_magnitude){
@@ -431,11 +434,11 @@ void gradual_update(int motor_id, double target_value){
 	}
 	else if(motor_id == 1){ //Right
 		if(!reached_target){
-			if(target_value > left_motor_magnitude){
-				left_motor_magnitude += 2
+			if(target_value > right_motor_magnitude){
+				right_motor_magnitude += update_constant;
 			} 
-			else if(target_value < left_motor_magnitude){
-				left_motor_magnitude -= 2; //increment by two slowly
+			else if(target_value < right_motor_magnitude){
+				right_motor_magnitude -= update_constant; //increment by two slowly
 			}
 			motor_control(MOTOR3,(right_motor_magnitude > 0 ? 0 : 1), right_motor_magnitude);
 			if(target_value == right_motor_magnitude){
@@ -464,7 +467,6 @@ void PID_motor_update() {
     /******************************Motor Proportional Control******************************/
     motor_error = enc_rightV - enc_leftV;
     left_motor_magnitude += motor_error * motor_kp;
-	//old_motor_error = motor_error;  //Considering whether I is needed
 	
     /******************************left**************************************/
     left_proportion = enc_Lerror;  //Calculate Proportion
