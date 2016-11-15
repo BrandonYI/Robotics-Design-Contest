@@ -18,6 +18,7 @@
 #include "gpio.h"
 #include "pneumatic.h"
 #include "encoder.h"
+#include "pid.h"
 int main(void);
 
 #include <stdio.h>

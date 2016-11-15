@@ -1,8 +1,8 @@
 #include "main.h"
-#define getLRmagnitude(x)  (x == 0) ? left_motor_magnitude : right_motor_magnitude
-#define getLRencoder(x) x == 0 ? TIM3->CNT : TIM4->CNT
+#define get_LR_magnitude(x)  (x == 0) ? left_motor_magnitude : right_motor_magnitude
+#define get_LR_encoder(x) x == 0 ? TIM3->CNT : TIM4->CNT
 #define abs(x) x < 0 ? -x : x
-#define clamp(val,max,min) val > min ? val > max ? max : val : min
+#define clamp(val,max,min) val < min ? min : val > max ? max : val
 const int IS_SHOOTER_ROBOT = 1; //to decide which while loop to use
 
 ////prototypes
@@ -28,36 +28,13 @@ void use_led(long, long);
     {0, 1, -1, 0}
 };*/
 //Motor Speed
-double left_motor_magnitude = 0;
-double right_motor_magnitude = 0;
-double left_target = 0;
-double right_target = 0;
+int left_motor_magnitude = 0;
+int right_motor_magnitude = 0;
 const int MOTOR_MAGNITUDE_LIM = 8000;
-
-//PID Control
-double target_enc_vel = 40; //target encoder velocity in ticks/ms
-u32 lastEncoderReadTime = 0;
-u32 timePassed = 0;
-int reached_target = 0;
-int update_constant = 2;
-
-long old_enc_leftX = 0;
-long old_enc_rightX = 0;
-double enc_leftV = 0; //left encoder angular velocity
-double enc_rightV = 0;
-double old_enc_Lerror = 0;
-double old_enc_Rerror = 0;
-double motor_error = 0;
-//PID P and D can be local var if not needed for debugging
-double left_proportion = 0;
-double left_derivative = 0;
-double left_integral = 0;
-double right_proportion = 0;
-double right_derivative = 0;
-double right_integral = 0;
-
+int target_enc_vel = 40; //target encoder velocity in ticks/ms
+PID left_encoder;
+PID right_encoder;
 //Constants for Tuning PID
-double motor_kp = 0;
 double left_kp = 0;
 double left_ki = 0;
 double left_kd = 0;
@@ -153,12 +130,15 @@ void uart_listener(const u8 byte) {
     uart_tx(COM3, "%c", byte);
     if (byte == '.') {
         bool_command_finish = 1;
-        buffer_index = 0;
     }
     if (byte == 'x') {    //If you make a typo, press x to reset buffer
         buffer_clear();
-        buffer_index = 0;
     }
+    if (strstr(buffer, "pid")) {  //Check PID values
+    	uart_tx(COM3, "\n lp:%.1f li:%.1f ld:%.1f\n", left_kp, left_ki, left_kd);
+    	uart_tx(COM3, "rp:%.1f ri:%.1f rd:%.1f\n", right_kp, right_ki, right_kd);
+    	buffer_clear();
+	}
 }
 
 float getMedian(const int a[]) {
@@ -311,16 +291,10 @@ void bluetooth_handler() {
                  	}
                  	uart_tx(COM3, "set both %c val to % f \n", k_id, dval);
                  	break;
-                case 3:
-                    uart_tx(COM3, "set motor %c val to $ f \n", k_id, dval);
-                    motor_kp = dval;
 	            }
         } else if (strstr(buffer, "targe")) {
             uart_tx(COM3, "set target to %d", val);
             target_enc_vel = val;
-        } else if (strstr(buffer, "updat")) {
-            uart_tx(COM3, "Change update constant to: %d", val);
-            update_constant = val;
         }
         /*else if (strstr(buffer, "basespee")){
 			uart_tx(COM3, "set basespeed to %d", val);
@@ -330,9 +304,6 @@ void bluetooth_handler() {
 			uart_tx(COM3, "Set offset to %d", val);
 			offset = val;
 		}*/
-        uart_tx(COM3, "MOTOR:%f \n", motor_error * motor_kp);
-        uart_tx(COM3, "LEFT p:%f, i:%f, d:%f         ", left_proportion * left_kp, left_integral * left_ki, left_derivative * left_kd);
-        uart_tx(COM3, "RIGHT p:%f, i:%f, d:%f   \n", right_proportion * right_kp, right_integral * right_ki, right_derivative * right_kd);
         buffer_clear();
     }
 }
@@ -368,83 +339,35 @@ void updateLRmagnitude(int x, double y) {
 		left_motor_magnitude = y;
 	}
 }
-
-double get_ang_vel(double change, u32 timePassed) {
+//DELETE
+/*double get_ang_vel(double change, u32 timePassed) {
     return change / timePassed;
 }
 
 //TIM3: left wheel  TIM4: Right wheel
 int get_enc_pos_change(int encoder_id, int old_enc_pos) {
     int change = 0;
-    int cur_enc_pos = getLRencoder(encoder_id);
+    int cur_enc_pos = get_LR_encoder(encoder_id);
     if (old_enc_pos - cur_enc_pos > 25000) { //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
         change += 65535;
     } else if (old_enc_pos - cur_enc_pos < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
         change -= 65535;
     }
     return change += (cur_enc_pos - old_enc_pos);
-}
-
-void gradual_update(int motor_id, double target_value) {
-    double motor_magnitude = getLRmagnitude(motor_id);
-    if (!reached_target) {
-        if (target_value > motor_magnitude) {
-            motor_magnitude += update_constant;
-        } else if (target_value < motor_magnitude) {
-            motor_magnitude -= update_constant; //increment by an update constant slowly
-        }
-        motor_control(motor_id == 0 ? MOTOR1 : MOTOR3, (motor_magnitude > 0 ? 0 : 1), motor_magnitude);
-        if (target_value == motor_magnitude) {
-            reached_target = 1;
-        }
-    } else if (reached_target && target_value != motor_magnitude) {
-        reached_target = 0;
-    }
-    updateLRmagnitude(motor_id, motor_magnitude);
-}
+}*/
 
 void PID_motor_update() {
-    timePassed = get_real_ticks() - lastEncoderReadTime;
-    lastEncoderReadTime = get_real_ticks();
-    double enc_Lerror = 0; //Error between target velocity and actual velocity
-    double enc_Rerror = 0;
+	pid_init(&left_encoder, left_kp, left_ki, left_kd);
+	pid_sampling(&left_encoder, get_LR_encoder(0));
+	left_motor_magnitude = pid_output(&left_encoder, target_enc_vel);
+	left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
+	motor_control(MOTOR1, (left_motor_magnitude > 0 ? 0 : 1), left_motor_magnitude * get_second_ticks() / 4);
 
-    /******************************Error Calculation**************************/
-    enc_leftV = get_ang_vel(get_enc_pos_change(0, old_enc_leftX), timePassed); //Calculate the left velocity (pos - oldpos / time)
-    enc_Lerror = target_enc_vel - enc_leftV; //Calculate the error
-    enc_rightV = get_ang_vel(get_enc_pos_change(1, old_enc_rightX), timePassed);
-    enc_Rerror = target_enc_vel - enc_rightV;
-
-    /******************************Motor Proportional Control******************************/
-    motor_error = enc_rightV - enc_leftV;
-    left_motor_magnitude += motor_error * motor_kp;
-
-    /******************************left**************************************/
-    left_proportion = enc_Lerror;  //Calculate Proportion
-    left_derivative = (enc_Lerror - old_enc_Lerror) / timePassed;  //Calculate Derivative
-    left_integral += left_proportion * timePassed;  //Calculate Integral
-
-    left_target += left_proportion * left_kp + left_derivative * left_kd + left_integral * left_ki; //Speed = P + I + D
-    left_target = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM); //Clamping
-
-    gradual_update(0, left_target); //Use Speed
-    old_enc_leftX = TIM3->CNT;  //Update Old Position
-    old_enc_Lerror = enc_Lerror;  //Update Old Velocity Error
-
-    /*****************************Right**************************************/
-    right_proportion = enc_Rerror;
-    right_derivative = (enc_Rerror - old_enc_Rerror) / timePassed;
-    right_integral += right_proportion * timePassed;
-
-    right_target += right_proportion * right_kp + right_derivative * right_kd + right_integral * right_ki;
-    right_target = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
-
-    gradual_update(1, right_target);
-    old_enc_rightX = TIM4->CNT;
-    old_enc_Rerror = enc_Rerror;
-    //motor_control(MOTOR1, 0, ba\sespeed+offset);
-    //motor_control(MOTOR3, 0, basespeed);
-
+	pid_init(&right_encoder, right_kp, right_ki, right_kd);
+	pid_sampling(&right_encoder, get_LR_encoder(1));
+	right_motor_magnitude = pid_output(&right_encoder, target_enc_vel);
+	right_motor_magnitude = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
+	motor_control(MOTOR3, (right_motor_magnitude > 0 ? 0 : 1), right_motor_magnitude * get_second_ticks() / 4);
 }
 
 int main() {
@@ -471,17 +394,12 @@ int main() {
             PID_motor_update(); //PID Motor Update
             bluetooth_handler();
             tft_clear();
-            tft_prints(10, 10, "left: %d      right: %d", TIM3->CNT, TIM4->CNT);
-            tft_prints(10, 20, "motor error: %f", motor_error);
-            tft_prints(10, 30, "Lmotor mag: %.2f", left_motor_magnitude);
-            tft_prints(10, 40, "Rmotor mag: %.2f", right_motor_magnitude);
-            tft_prints(10, 50, "Lerror: %.2f", old_enc_Lerror);
-            tft_prints(10, 60, "Rerror: %.2f", old_enc_Rerror);
-            tft_prints(10, 70, "L cur_vel:%.1f  target:%.1f", enc_leftV, target_enc_vel);
-            tft_prints(10, 80, "R cur_vel:%.1f  target:%.1f", enc_rightV, target_enc_vel);
-            tft_prints(10, 90, "Lp: %.2f  Rp: %.2f", left_kp, right_kp);
-            tft_prints(10, 100, "Li: %.3e  Ri: %.3e", left_ki, right_ki);
-            tft_prints(10, 110, "Ld: %.2f  Rd: %.2f", left_kd, right_kd);
+            tft_prints(10, 10, "Left: %d      Right: %d", TIM3->CNT, TIM4->CNT);
+            tft_prints(10, 20, "Time: %d", get_real_ticks());
+            tft_prints(10, 30, "Lmotor mag: %d", left_motor_magnitude);
+            tft_prints(10, 40, "Rmotor mag: %d", right_motor_magnitude);
+            tft_prints(10, 50, "L vel:%d  target:%d", left_encoder.current.value, target_enc_vel);
+            tft_prints(10, 60, "R vel:%d  target:%d", right_encoder.current.value, target_enc_vel);
         }
     } else { // is smartcar code
         while (1) {

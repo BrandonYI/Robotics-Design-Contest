@@ -599,6 +599,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\user\main.c</FilePath>
             </File>
+            <File>
+              <FileName>pid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\user\pid.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
