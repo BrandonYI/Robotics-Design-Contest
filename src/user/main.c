@@ -393,13 +393,15 @@ int main() {
         while (1) {
             PID_motor_update(); //PID Motor Update
             bluetooth_handler();
-            tft_clear();
-            tft_prints(10, 10, "Left: %d      Right: %d", TIM3->CNT, TIM4->CNT);
-            tft_prints(10, 20, "Time: %d", get_real_ticks());
-            tft_prints(10, 30, "Lmotor mag: %d", left_motor_magnitude);
-            tft_prints(10, 40, "Rmotor mag: %d", right_motor_magnitude);
-            tft_prints(10, 50, "L vel:%d  target:%d", left_encoder.current.value, target_enc_vel);
-            tft_prints(10, 60, "R vel:%d  target:%d", right_encoder.current.value, target_enc_vel);
+            tft_fill_area(40,10, 35, 60, BLACK);
+						tft_fill_area(105,10, 20, 60, BLACK);
+						tft_fill_area(70, 60, 35, 20, BLACK); //Text at 10,60 is buggy
+            tft_prints(10, 10, "Left:     %d         Right: %d", TIM3->CNT, TIM4->CNT);
+            tft_prints(10, 20, "Time:    %d", get_real_ticks());
+            tft_prints(10, 30, "Lmag:  %d", left_motor_magnitude);
+            tft_prints(10, 40, "Rmag:  %d", right_motor_magnitude);
+            tft_prints(10, 50, "Lvel:    %d         target: %d", left_encoder.current.value, target_enc_vel);
+            tft_prints(10, 60, "Rvel:    %d         target: %d", right_encoder.current.value, target_enc_vel);
         }
     } else { // is smartcar code
         while (1) {
