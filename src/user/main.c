@@ -2,7 +2,7 @@
 #define get_LR_magnitude(x)  (x == 0) ? left_motor_magnitude : right_motor_magnitude
 #define get_LR_encoder(x) x == 0 ? TIM3->CNT : TIM4->CNT
 #define abs(x) x < 0 ? -x : x
-#define clamp(val,max,min) val < min ? min : val > max ? max : val
+#define clamp(val,min,max) val < min ? min : val > max ? max : val
 const int IS_SHOOTER_ROBOT = 1; //to decide which while loop to use
 
 ////prototypes
@@ -30,7 +30,9 @@ void use_led(long, long);
 //Motor Speed
 int left_motor_magnitude = 0;
 int right_motor_magnitude = 0;
-const int MOTOR_MAGNITUDE_LIM = 8000;
+int actual_left_magnitude = 0;
+int actual_right_magnitude = 0;
+const int MOTOR_MAGNITUDE_LIM = 100;
 int target_enc_vel = 40; //target encoder velocity in ticks/ms
 PID left_encoder;
 PID right_encoder;
@@ -295,6 +297,7 @@ void bluetooth_handler() {
         } else if (strstr(buffer, "targe")) {
             uart_tx(COM3, "set target to %d", val);
             target_enc_vel = val;
+            ticks_reset();
         }
         /*else if (strstr(buffer, "basespee")){
 			uart_tx(COM3, "set basespeed to %d", val);
@@ -359,15 +362,20 @@ int get_enc_pos_change(int encoder_id, int old_enc_pos) {
 void PID_motor_update() {
 	pid_init(&left_encoder, left_kp, left_ki, left_kd);
 	pid_sampling(&left_encoder, get_LR_encoder(0));
-	left_motor_magnitude = pid_output(&left_encoder, target_enc_vel);
-	left_motor_magnitude = clamp(left_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
-	motor_control(MOTOR1, (left_motor_magnitude > 0 ? 0 : 1), left_motor_magnitude * get_second_ticks() / 4);
+	left_encoder.prev.ticks = left_encoder.current.ticks;
+	//actual_left_magnitude = clamp(target_enc_vel * get_second_ticks() / 4, -target_enc_vel, target_enc_vel);
+	left_motor_magnitude = pid_output(&left_encoder, clamp(target_enc_vel * get_second_ticks() / 4, -target_enc_vel, target_enc_vel));
+	//left_motor_magnitude = (left_motor_magnitude * get_second_ticks()) / 4; //Take 4 seconds to reach the desired speed
+	//left_motor_magnitude = clamp(left_motor_magnitude, -target_enc_vel, target_enc_vel);
+	motor_control(MOTOR1, (left_motor_magnitude > 0 ? 0 : 1), left_motor_magnitude);
 
 	pid_init(&right_encoder, right_kp, right_ki, right_kd);
 	pid_sampling(&right_encoder, get_LR_encoder(1));
-	right_motor_magnitude = pid_output(&right_encoder, target_enc_vel);
-	right_motor_magnitude = clamp(right_motor_magnitude, -MOTOR_MAGNITUDE_LIM, MOTOR_MAGNITUDE_LIM);
-	motor_control(MOTOR3, (right_motor_magnitude > 0 ? 0 : 1), right_motor_magnitude * get_second_ticks() / 4);
+	//actual_right_magnitude = clamp(target_enc_vel * get_second_ticks() / 4, -target_enc_vel, target_enc_vel);
+	right_motor_magnitude = pid_output(&right_encoder, clamp(target_enc_vel * get_second_ticks() / 4, -target_enc_vel, target_enc_vel));
+	//right_motor_magnitude = (right_motor_magnitude * get_second_ticks()) / 4;
+	//right_motor_magnitude = clamp(right_motor_magnitude, -target_enc_vel, target_enc_vel);
+	motor_control(MOTOR3, (right_motor_magnitude > 0 ? 0 : 1), right_motor_magnitude);
 }
 
 int main() {
@@ -393,15 +401,18 @@ int main() {
         while (1) {
             PID_motor_update(); //PID Motor Update
             bluetooth_handler();
-            tft_fill_area(40,10, 35, 60, BLACK);
-						tft_fill_area(105,10, 20, 60, BLACK);
-						tft_fill_area(70, 60, 35, 20, BLACK); //Text at 10,60 is buggy
-            tft_prints(10, 10, "Left:     %d         Right: %d", TIM3->CNT, TIM4->CNT);
-            tft_prints(10, 20, "Time:    %d", get_real_ticks());
+            tft_clear();
+            /*tft_fill_area(40,10, 35, 60, BLACK);
+            tft_fill_area(105,10, 20, 60, BLACK);
+            tft_fill_area(70, 60, 35, 20, BLACK); //Text at 10,60 is buggy*/
+            tft_prints(10, 10, "Left:  %d   Right: %d", TIM3->CNT, TIM4->CNT);
+            tft_prints(10, 20, "Time:  %d", get_real_ticks());
             tft_prints(10, 30, "Lmag:  %d", left_motor_magnitude);
             tft_prints(10, 40, "Rmag:  %d", right_motor_magnitude);
-            tft_prints(10, 50, "Lvel:    %d         target: %d", left_encoder.current.value, target_enc_vel);
-            tft_prints(10, 60, "Rvel:    %d         target: %d", right_encoder.current.value, target_enc_vel);
+            tft_prints(10, 50, "Lvel:  %d    target: %d", left_encoder.proportion, target_enc_vel);
+            tft_prints(10, 60, "Rvel:  %d    target: %d", right_encoder.proportion, target_enc_vel);
+            tft_prints(10, 70, "PrevT: %d Val: %d", left_encoder.prev.ticks, left_encoder.prev.value);
+            tft_prints(10, 80, "CurrT: %d Val: %d", left_encoder.current.ticks, left_encoder.current.value);
         }
     } else { // is smartcar code
         while (1) {

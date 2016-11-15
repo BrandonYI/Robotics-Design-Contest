@@ -14,7 +14,9 @@ void pid_init(PID* tracker, double p, double i, double d){
 }
 
 void pid_sampling(PID* tracker, int reading){
-	Reading current = tracker->current;
+	//Reading current = tracker->current;
+	tracker->prev.value = tracker->current.value;
+	tracker->prev.ticks = tracker->current.ticks;
 	tracker->prev = tracker->current;
 	tracker->current.value = reading;
 	tracker->current.ticks = get_real_ticks();
@@ -25,7 +27,7 @@ int pid_output(PID* tracker, int target){
 		return target * tracker->kp;
 	} else{
 		tracker->proportion = target;
-		tracker->integral += (target - tracker->current.value) * (get_real_ticks() - tracker->current.ticks);
+		tracker->integral += (target - tracker->current.value) * (get_real_ticks() - tracker->current.ticks + 1);
 		tracker->derivative = (target - tracker->current.value) / (tracker->prev.ticks - tracker->current.ticks);
 		return tracker->proportion * tracker->kp + tracker->integral * tracker->ki + tracker->derivative * tracker->kd;
 	}
