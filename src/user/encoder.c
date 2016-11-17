@@ -52,12 +52,20 @@ void encoder_init(Encoder* encoder, ENCODER_ID id)
 	    TIM_Cmd(TIM3, ENABLE);
 	}
 	encoder->id = id;
+	encoder->rotations = 0;
+	encoder->prev_ticks_real = 0;
+	encoder->current_ticks_real = 0;
+	encoder->prev_ticks = 0;
+	encoder->current_ticks = 0;
 	encoder->prev = 0;
 	encoder->current = 0;
 }
 
 void encoder_update(Encoder* encoder)
 {
+	encoder->prev_ticks = encoder->current_ticks;
+	encoder->current_ticks = get_real_ticks();
+	encoder->prev_ticks_real = encoder->current_ticks_real;
 	encoder->prev = encoder->current;
 	encoder->current = 0;
 	if (encoder->id == ENCODER_LEFT)
@@ -69,16 +77,20 @@ void encoder_update(Encoder* encoder)
 		encoder->current = TIM4->CNT;
 	}
 	//handle overflow
-	int overflow = 0;
 	if (encoder->prev - encoder->current > 25000) { //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
-        overflow = 65535;
-    } else if (encoder->prev - encoder->current < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
-        overflow = -65535;
+        encoder->rotations++;
     }
-    encoder->current += overflow + (encoder->current - encoder->prev);
+    if (encoder->prev - encoder->current < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
+        encoder->rotations--;
+    }
+    encoder->current_ticks_real = encoder->current + encoder->rotations * 65535;
 }
-
+// Iteration 1: current = 2 prev = 7 / current =
 int get_encoder_value(Encoder* encoder)
 {
-	return encoder->current;
+	return encoder->current_ticks_real;
+}
+
+int get_encoder_velocity(Encoder* encoder){
+	return (encoder->current_ticks_real - encoder->prev_ticks_real) / (encoder->current_ticks - encoder->prev_ticks + 1);
 }

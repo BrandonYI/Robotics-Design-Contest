@@ -27,6 +27,5 @@ void pid_init(PID* tracker, double p, double i, double d);
 void pid_update(PID* tracker, double dval, char k_id);
 void pid_sampling(PID* tracker, int reading);
 int pid_output(PID* tracker, int target);
-/*int pid_actual(PID* tracker);*/
 
 #endif
