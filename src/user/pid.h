@@ -1,5 +1,6 @@
 #ifndef _PID_H
 #define _PID_H
+
 #include "ticks.h"
 
 struct Reading
@@ -14,10 +15,10 @@ struct PID
 	double kp;
 	double ki;
 	double kd;
-	double prev_error;
 	int proportion;
 	int integral;
 	int derivative;
+	int prev_error;
 	Reading current;
 	Reading prev;
 };

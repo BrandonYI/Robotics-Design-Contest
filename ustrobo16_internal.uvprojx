@@ -604,6 +604,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\user\encoder.c</FilePath>
             </File>
+            <File>
+              <FileName>filter_ccd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\user\filter_ccd.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

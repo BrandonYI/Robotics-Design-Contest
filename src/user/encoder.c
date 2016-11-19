@@ -52,22 +52,22 @@ void encoder_init(Encoder* encoder, ENCODER_ID id)
 	    TIM_Cmd(TIM3, ENABLE);
 	}
 	encoder->id = id;
-	encoder->rotations = 0;
-	encoder->prev_ticks_real = 0;
-	encoder->current_ticks_real = 0;
-	encoder->prev_ticks = 0;
-	encoder->current_ticks = 0;
 	encoder->prev = 0;
+	encoder->prev_tick = 0;
 	encoder->current = 0;
+	encoder->current_tick = 0;
+	encoder->rotations = 0;
+	encoder->current_real = 0;
+	encoder->prev_real = 0;
 }
 
 void encoder_update(Encoder* encoder)
 {
-	encoder->prev_ticks = encoder->current_ticks;
-	encoder->current_ticks = get_real_ticks();
-	encoder->prev_ticks_real = encoder->current_ticks_real;
+	encoder->prev_real = encoder->current_real;
 	encoder->prev = encoder->current;
+	encoder->prev_tick = encoder->current_tick;
 	encoder->current = 0;
+	encoder->current_tick = get_real_ticks();
 	if (encoder->id == ENCODER_LEFT)
 	{
 		encoder->current = TIM3->CNT;
@@ -80,17 +80,22 @@ void encoder_update(Encoder* encoder)
 	if (encoder->prev - encoder->current > 25000) { //jumped gap from 65534 ... 65535 ... 0 ... 1 ... 2
         encoder->rotations++;
     }
-    if (encoder->prev - encoder->current < -25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
+	if (encoder->current - encoder->prev > 25000) { //jumped gap from 2 ... 1 ... 0 ... 65535 ... 65534
         encoder->rotations--;
     }
-    encoder->current_ticks_real = encoder->current + encoder->rotations * 65535;
-}
-// Iteration 1: current = 2 prev = 7 / current =
-int get_encoder_value(Encoder* encoder)
-{
-	return encoder->current_ticks_real;
+	encoder->current_real = encoder->current + encoder->rotations * 65535;
 }
 
-int get_encoder_velocity(Encoder* encoder){
-	return (encoder->current_ticks_real - encoder->prev_ticks_real) / (encoder->current_ticks - encoder->prev_ticks + 1);
+int get_encoder_value(Encoder* encoder)
+{
+	/*if (encoder->id == ENCODER_LEFT)
+	{
+		return encoder->current_real * 1.173;
+	}*/
+	return encoder->current_real;
+}
+
+int get_encoder_velocity(Encoder* encoder)
+{
+	return (encoder->current_real - encoder->prev_real) / (encoder->current_tick - encoder->prev_tick);
 }

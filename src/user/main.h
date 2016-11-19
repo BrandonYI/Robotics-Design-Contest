@@ -9,7 +9,6 @@
 #include "delay.h"
 //#include "buzzer.h"
 //#include "buzzer_song.h"
-
 #include "servo.h"
 #include "motor.h"
 #include "lcd_blue.h"
@@ -19,6 +18,7 @@
 #include "pneumatic.h"
 #include "encoder.h"
 #include "pid.h"
+#include "filter_ccd.h"
 int main(void);
 
 #include <stdio.h>

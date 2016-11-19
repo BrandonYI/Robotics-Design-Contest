@@ -1,22 +1,23 @@
 #ifndef _ENCODER_H
 #define _ENCODER_H
+
 #include "ticks.h"
 
 typedef enum {
 	ENCODER_LEFT,
 	ENCODER_RIGHT
-} ENCODER_ID;
+}ENCODER_ID;
 
 struct Encoder
 {
 	int id;
-	int prev;
-	int current;
-	int prev_ticks_real;
-	int current_ticks_real;
-	int prev_ticks;
-	int current_ticks;
 	int rotations;
+	int prev;
+	int prev_tick;
+	int current;
+	int current_tick;
+	int prev_real;
+	int current_real;
 };
 typedef struct Encoder Encoder;
 
